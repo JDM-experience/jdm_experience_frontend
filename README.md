@@ -11,6 +11,13 @@ server beyond `vite dev` itself.
 > [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md). For the routing setup, see
 > [docs/ROUTES.md](docs/ROUTES.md).
 
+## Project info
+
+| | |
+|---|---|
+| Main contact | achilleslucas79+development@gmail.com |
+| Issue tracker | [Jira — JEA board](https://achilleslucas79.atlassian.net/jira/software/projects/JEA/list?jql=project+%3D+JEA+ORDER+BY+cf%5B10019%5D+ASC) |
+
 ## What this is (and isn't)
 
 The original PHP app repurposes a streetwear e-commerce database (`products`, `orders`,
