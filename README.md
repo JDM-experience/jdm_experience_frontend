@@ -9,7 +9,8 @@ server beyond `vite dev` itself.
 > the service contract every facade implements, and the ported business rules — see
 > [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). For coding standards and conventions, see
 > [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md). For the routing setup, see
-> [docs/ROUTES.md](docs/ROUTES.md).
+> [docs/ROUTES.md](docs/ROUTES.md). For the Jira/branching workflow, see
+> [docs/WORKFLOW.md](docs/WORKFLOW.md).
 
 ## Project info
 
