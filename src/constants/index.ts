@@ -1,3 +1,14 @@
+import type { ThemeConfig } from 'antd';
+
+/** AntD ConfigProvider theme, applied once at the app root in `App.tsx`. */
+export const ANTD_THEME: ThemeConfig = {
+  token: {
+    colorPrimary: '#000000',
+    borderRadius: 6,
+    fontFamily: "'Segoe UI', Roboto, -apple-system, sans-serif",
+  },
+};
+
 /** Percentage taken off the total when PROMO_CODE is applied at checkout. */
 export const PROMO_CODE = 'DRIP10';
 export const PROMO_DISCOUNT_RATE = 0.1;

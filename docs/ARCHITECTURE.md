@@ -95,6 +95,10 @@ under `AdminLayout` (`AdminNavbar` + `<Outlet/>` + Footer), guarded by `AdminPro
 not logged in). "Guard" = admin means wrapped in `<AdminProtectedRoute>` (redirects to
 `/admin/login`).
 
+In code, this table is three plain arrays (`publicRoutes`, `clientRoutes`, `adminRoutes` in
+`src/routes/{public,client,admin}/index.tsx`) composed into the tree by `src/routes/RouteMain.tsx`,
+which `App.tsx` renders. See [ROUTES.md](ROUTES.md) for the file layout and how to add a route.
+
 `navbar.php`'s live search AJAX (`search_suggestions.php`) is `productService.searchSuggestions()`,
 wired into the `AutoComplete` in `components/layout/Navbar.tsx`.
 

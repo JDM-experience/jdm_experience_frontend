@@ -7,7 +7,9 @@ server beyond `vite dev` itself.
 
 > For a deeper technical reference — layered architecture diagram, full route-to-PHP-file mapping,
 > the service contract every facade implements, and the ported business rules — see
-> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). For coding standards and conventions, see
+> [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md). For the routing setup, see
+> [docs/ROUTES.md](docs/ROUTES.md).
 
 ## What this is (and isn't)
 
@@ -48,7 +50,7 @@ src/
 │   ├── common/       # PriceDisplay, TourCard, AvailabilityBadge, OrderStatusTag, EmptyState, ...
 │   └── layout/        # Navbar, Footer, AdminNavbar
 ├── layouts/            # MainLayout, AdminLayout (Navbar/Footer + <Outlet/>)
-├── routes/             # ProtectedRoute, AdminProtectedRoute (auth guards)
+├── routes/             # RouteMain (route tree), public/client/admin route arrays, auth guards
 ├── pages/              # One folder per route (Home, Tours, TourDetail, Cart, Checkout, ...)
 │   └── admin/          # Admin panel pages
 ├── contexts/           # AuthContext, AdminAuthContext, CartContext (+ their hooks)
@@ -119,8 +121,8 @@ swapping mocks for a real API is invisible above the service layer.
 ## Adding a new page
 
 1. Create `src/pages/YourPage/index.tsx`.
-2. Add a `<Route>` in `src/App.tsx` (inside `<MainLayout>` for customer-facing, inside
-   `<AdminLayout>` under `AdminProtectedRoute` for admin-facing).
+2. Add a `{ path, element }` entry to `publicRoutes`, `clientRoutes`, or `adminRoutes` in
+   `src/routes/{public,client,admin}/index.tsx` — see [docs/ROUTES.md](docs/ROUTES.md).
 3. If it needs data, add functions to the relevant `src/services/mock/*Service.ts` + re-export
    from the facade — never import `services/mock/*` directly from a page.
 

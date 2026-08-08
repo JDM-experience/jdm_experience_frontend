@@ -1,0 +1,25 @@
+import type { AppRoute } from '@/routes/types';
+import Home from '@/pages/Home';
+import Tours from '@/pages/Tours';
+import TourDetail from '@/pages/TourDetail';
+import Cart from '@/pages/Cart';
+import ThankYou from '@/pages/ThankYou';
+import Login from '@/pages/Login';
+import Register from '@/pages/Register';
+import About from '@/pages/About';
+import Contact from '@/pages/Contact';
+import Policy from '@/pages/Policy';
+
+/** Routes nested under `MainLayout` that need no authentication. */
+export const publicRoutes: AppRoute[] = [
+  { index: true, element: <Home /> },
+  { path: 'tours', element: <Tours /> },
+  { path: 'tours/:id', element: <TourDetail /> },
+  { path: 'cart', element: <Cart /> },
+  { path: 'thank-you/:orderId', element: <ThankYou /> },
+  { path: 'login', element: <Login /> },
+  { path: 'register', element: <Register /> },
+  { path: 'about', element: <About /> },
+  { path: 'contact', element: <Contact /> },
+  { path: 'policy', element: <Policy /> },
+];
