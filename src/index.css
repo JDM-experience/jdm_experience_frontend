@@ -1,0 +1,35 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Roboto, -apple-system, sans-serif;
+}
+
+a {
+  color: inherit;
+}
+
+@media print {
+  header,
+  .ant-layout-header,
+  .ant-layout-footer,
+  .no-print {
+    display: none !important;
+  }
+
+  .receipt-container {
+    margin: 0 !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+}
