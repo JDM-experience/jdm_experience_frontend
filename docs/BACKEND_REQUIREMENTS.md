@@ -5,6 +5,11 @@ Source material for creating the backend Jira EPIC(s) and stories. This is a gap
 [ARCHITECTURE.md](ARCHITECTURE.md)) versus what a real Node.js API needs to provide so the mock
 layer can be deleted per [ARCHITECTURE.md §10](ARCHITECTURE.md#10-backend-integration-checklist).
 
+The real backend lives in its own repo:
+[jdm_experience_backend](https://github.com/achilleslucas79-bot/jdm_experience_backend). This doc
+is the spec for what that repo needs to implement — it doesn't live there itself because the epics
+are best scoped from the frontend's existing contract (`src/types/*.ts` + the mock services).
+
 **How to use this doc:** each `## Epic` below is one Jira Epic; each `### Story` under it is one
 Jira Story. Endpoint paths/verbs are suggestions (there is no existing backend contract to match —
 `src/services/httpClient.ts` is a generic REST wrapper, not yet wired to anything), adjust freely.
