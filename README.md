@@ -10,7 +10,8 @@ server beyond `vite dev` itself.
 > [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). For coding standards and conventions, see
 > [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md). For the routing setup, see
 > [docs/ROUTES.md](docs/ROUTES.md). For the Jira/branching workflow, see
-> [docs/WORKFLOW.md](docs/WORKFLOW.md).
+> [docs/WORKFLOW.md](docs/WORKFLOW.md). For the backend work still needed (Jira epic/story
+> source), see [docs/BACKEND_REQUIREMENTS.md](docs/BACKEND_REQUIREMENTS.md).
 
 ## Project info
 
