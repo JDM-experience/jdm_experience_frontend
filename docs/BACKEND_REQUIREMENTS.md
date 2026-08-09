@@ -207,7 +207,7 @@ attempts — none of this exists in the mock since it has nothing real to protec
 ### Story: CORS & environment wiring
 Configure the API to accept the frontend's origin with credentials, matching `VITE_API_URL` /
 `VITE_USE_MOCKS` in `src/services/config.ts`. Coordinate the deployed API URL with whoever manages
-`.env` for each environment (see [WORKFLOW.md](WORKFLOW.md) for `dev`/`main` environments).
+`.env` for each environment (see [WORKFLOW.md](WORKFLOW.md) for `development`/`main` environments).
 
 ## Cutover checklist (once the API above exists)
 
