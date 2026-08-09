@@ -26,8 +26,8 @@ gets a *Preview* deployment, not Vercel's "Development" environment):
 
 | Vercel environment | What it's for | Maps to (this repo) |
 |---|---|---|
-| Production | The live site. One branch, set in Project Settings → Git → Production Branch | `main` |
-| Preview | Every branch/PR that isn't the Production Branch gets its own throwaway URL | `development` and every `TICKETNUMBER-TICKETTITLE` branch |
+| Production | The live site. One branch, set in Project Settings → Git → Production Branch | `main` → https://jdm-experience-frontend.vercel.app/ |
+| Preview | Every branch/PR that isn't the Production Branch gets its own throwaway URL | `development` → https://jdm-experience-frontend-git-development-acme-3452.vercel.app/, plus every `TICKETNUMBER-TICKETTITLE` branch at its own URL |
 | Development | Not a deployment at all — only feeds `vercel dev` / `vercel env pull` for local work | n/a (local machine, not CI) |
 
 ## Environment variables

@@ -23,6 +23,8 @@ server beyond `vite dev` itself.
 | Frontend repo | [JDM-experience/jdm_experience_frontend](https://github.com/JDM-experience/jdm_experience_frontend) |
 | Backend repo | [jdm_experience_backend](https://github.com/achilleslucas79-bot/jdm_experience_backend) |
 | Hosting | [Vercel](https://vercel.com/acme-3452/jdm-experience-frontend) |
+| Production site | https://jdm-experience-frontend.vercel.app/ |
+| Development site | https://jdm-experience-frontend-git-development-acme-3452.vercel.app/ |
 
 ## What this is (and isn't)
 
