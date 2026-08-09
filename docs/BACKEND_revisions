@@ -1,0 +1,427 @@
+# Backend Implementation
+
+## Overview
+
+The backend will replace the existing PHP backend and provide the services required by the React frontend.
+
+The new backend will use:
+
+- **Node.js** — Backend runtime
+- **TypeScript** — Primary development language
+- **MySQL** — Relational database
+- **Prisma ORM** — Database access, schema management, and migrations
+- **REST API** — Communication between the React frontend and backend
+
+The goal is to create a secure, maintainable, and scalable backend while preserving the functionality required by the existing application.
+
+---
+
+## Architecture
+
+```text
+React + TypeScript + Ant Design
+              |
+              v
+          REST API
+              |
+              v
+       Node.js + TypeScript
+              |
+              v
+           Prisma
+              |
+              v
+            MySQL
+```
+
+The React frontend will **not** connect directly to the MySQL database. All database operations will go through the Node.js API.
+
+This allows the backend to centrally handle:
+
+- Authentication
+- Authorization
+- Role-based permissions
+- Business rules
+- Data validation
+- Database operations
+- Error handling
+- Security
+
+---
+
+## Role-Based Access Control
+
+The backend will use a **role-based access control (RBAC)** system.
+
+Permissions will be enforced on the backend, not only hidden in the frontend. This prevents users from bypassing frontend restrictions by manually calling API endpoints.
+
+### Roles
+
+| Role | Permissions |
+|---|---|
+| **Super Admin** | Full system access. Can create, read, update, delete, and manage users and other administrative resources. |
+| **Admin** | Can manage users and tours according to the permissions assigned to the Admin role. |
+| **Tour Guide** | Can manage tours assigned to them. Cannot manage tours belonging to other tour guides and does not have full administrative access. |
+
+### Tour Guide Ownership
+
+Tour Guides will have ownership restrictions.
+
+For example:
+
+```text
+Tour Guide A
+    └── Tour A
+
+Tour Guide B
+    └── Tour B
+```
+
+Tour Guide A can manage **Tour A**, but cannot modify or delete **Tour B**.
+
+These restrictions will be enforced by the backend.
+
+---
+
+## Backend Scope
+
+The backend implementation includes:
+
+- Node.js + TypeScript project setup
+- MySQL database connection
+- Prisma ORM setup
+- Prisma schema and database models
+- Database relationships
+- Database migrations
+- REST API architecture
+- API routes and endpoints
+- Controllers and services
+- CRUD operations
+- Authentication
+- Role-based authorization
+- Request validation
+- Error handling
+- Consistent API responses
+- CORS configuration
+- Environment variable configuration
+- Logging and basic backend security
+- React frontend integration
+- Preparation for production deployment
+
+---
+
+## Database
+
+MySQL will be used as the primary relational database.
+
+Prisma will act as the database access layer between the Node.js application and MySQL.
+
+### Database Tasks
+
+- Analyze the existing PHP application's database structure
+- Map existing tables and relationships to Prisma models
+- Create `schema.prisma`
+- Define primary keys
+- Define foreign keys
+- Define relationships
+- Add appropriate indexes and constraints
+- Create and manage Prisma migrations
+- Seed development data where necessary
+- Ensure the database supports the application's existing functionality
+- Protect sensitive information
+
+### Expected Data Areas
+
+Depending on the existing application's requirements, the database may contain:
+
+- Users and staff accounts
+- Roles and permissions
+- Tours
+- Tour assignments
+- Orders / reservations
+- Order items
+- Contact messages
+- Other application-specific entities
+
+---
+
+## API
+
+The backend will expose RESTful API endpoints required by the application.
+
+Each endpoint should provide:
+
+- Appropriate HTTP methods
+- Request validation
+- Consistent response formats
+- Proper HTTP status codes
+- Error handling
+- Database interaction through Prisma
+- Authentication and authorization checks where required
+
+### Example
+
+```http
+GET    /api/tours
+GET    /api/tours/:id
+POST   /api/tours
+PUT    /api/tours/:id
+DELETE /api/tours/:id
+```
+
+The final endpoint structure will be based on the application's actual requirements.
+
+---
+
+## User & Access Management
+
+The backend will support user management according to the defined roles.
+
+### Features
+
+- User creation
+- User login
+- User management
+- Password hashing
+- Role assignment
+- Role-based authorization
+- Protected API routes
+- Account/profile management where required
+- Prevention of unauthorized access
+
+Passwords must never be stored as plain text.
+
+---
+
+## Tour Management
+
+Tour management will respect the role permissions.
+
+| Action | Super Admin | Admin | Tour Guide |
+|---|---:|---:|---:|
+| Create tours | Yes | Yes | Yes, subject to business rules |
+| View tours | Yes | Yes | Yes |
+| Update tours | Yes | Yes | Assigned tours only |
+| Delete tours | Yes | Yes | Subject to business rules |
+| Manage users | Yes | Yes | No |
+
+> **Note:** Exact permissions can be adjusted based on the client's final business requirements.
+
+---
+
+## Security & Validation
+
+The backend will include basic security measures to protect the application and its data.
+
+### Security Requirements
+
+- Password hashing
+- Authentication checks
+- Role-based authorization
+- Input validation
+- Protected API endpoints
+- Secure environment variables
+- CORS configuration
+- Appropriate HTTP status codes
+- Centralized error handling
+- Avoid exposing sensitive database information
+- Secure session/token handling according to the selected authentication approach
+
+---
+
+## Project Structure
+
+The backend should follow a maintainable structure similar to:
+
+```text
+src/
+├── controllers/
+├── routes/
+├── services/
+├── middleware/
+├── validators/
+├── lib/
+├── types/
+├── utils/
+├── app.ts
+└── server.ts
+
+prisma/
+├── schema.prisma
+└── migrations/
+```
+
+### Separation of Concerns
+
+Business logic should not be placed directly inside route handlers.
+
+Responsibilities should be separated into:
+
+- **Routes** — Define API endpoints
+- **Controllers** — Handle incoming requests and responses
+- **Services** — Handle business logic
+- **Prisma** — Handle database access
+- **Middleware** — Handle authentication, authorization, and shared request processing
+- **Validators** — Validate incoming data
+- **Utils** — Shared helper functionality
+
+---
+
+## Environment Configuration
+
+Sensitive configuration must not be hardcoded in the source code.
+
+Use environment variables for:
+
+- Database connection
+- Server port
+- API configuration
+- Authentication secrets
+- Other environment-specific settings
+
+Example:
+
+```env
+DATABASE_URL=
+PORT=
+AUTH_SECRET=
+```
+
+An `.env.example` file should be provided for development and deployment configuration.
+
+---
+
+## Frontend Integration
+
+The React frontend currently uses mock services while the backend is being developed.
+
+Once the backend is ready, these mock services will be replaced with HTTP API calls.
+
+The frontend should communicate with the backend through service functions rather than directly accessing the database.
+
+```text
+React Frontend
+      |
+      | HTTP Request
+      v
+Node.js REST API
+      |
+      v
+Business Logic
+      |
+      v
+Prisma ORM
+      |
+      v
+MySQL
+```
+
+This keeps the frontend and backend separated and allows each part of the system to be maintained independently.
+
+---
+
+## Backend Migration
+
+The new backend will replace the required functionality currently handled by the PHP backend.
+
+This includes, where applicable:
+
+- PHP database operations
+- PHP CRUD operations
+- PHP authentication/session logic
+- Server-side validation
+- Database queries
+- Business rules
+- Backend security controls
+
+The existing database structure should be analyzed before migration so that required functionality is preserved.
+
+---
+
+## Acceptance Criteria
+
+- [ ] Node.js + TypeScript backend project is configured
+- [ ] MySQL database connection is working
+- [ ] Prisma is configured and connected to MySQL
+- [ ] Database schema is mapped into Prisma
+- [ ] Prisma migrations are created and working
+- [ ] Required database relationships and constraints are implemented
+- [ ] REST API structure is established
+- [ ] Required endpoints are implemented
+- [ ] CRUD operations are functional
+- [ ] Request validation is implemented
+- [ ] Consistent API responses are implemented
+- [ ] Error handling is implemented
+- [ ] Authentication is implemented
+- [ ] Role-based authorization is implemented
+- [ ] Super Admin permissions are enforced
+- [ ] Admin permissions are enforced
+- [ ] Tour Guide permissions are enforced
+- [ ] Tour Guide ownership restrictions are enforced
+- [ ] CORS is configured for the React frontend
+- [ ] Environment variables are properly configured
+- [ ] Backend is documented
+- [ ] React frontend can communicate with the backend
+- [ ] Required PHP backend functionality has been replaced
+- [ ] Backend is ready for deployment
+
+---
+
+## Out of Scope
+
+The following are not part of this backend implementation unless added as separate tasks:
+
+- React frontend UI implementation
+- Ant Design component development
+- Frontend-only business logic
+- Domain registration
+- Hosting/domain setup
+- Production server configuration
+- Third-party integrations not required by the existing application
+
+---
+
+## Client Decisions Required
+
+The following decisions should be confirmed before final implementation:
+
+| Decision | Why It Matters |
+|---|---|
+| **Authentication method** | Determines how users authenticate and how protected API requests are handled. |
+| **Role permissions** | Confirms exactly what Super Admins, Admins, and Tour Guides can do. |
+| **Tour assignment rules** | Defines how tours are assigned to Tour Guides and what they can manage. |
+| **Cart ownership** | Determines whether cart data is stored on the server or primarily in the browser. |
+| **Payment handling** | Determines whether a payment gateway such as PayMongo or Stripe will be integrated. |
+| **File storage** | Determines where tour images and payment proof files will be stored. |
+| **Email provider** | Determines how the system will send emails, such as contact-message replies. |
+
+---
+
+## Expected Result
+
+At completion, the application will have a dedicated Node.js backend that securely manages:
+
+- Users
+- Roles
+- Permissions
+- Tours
+- Tour assignments
+- Database operations
+- Reservations/orders
+- Other required application functionality
+
+The final architecture will allow the React frontend and Node.js backend to be developed and maintained independently.
+
+```text
+React Frontend
+      ↕
+Node.js REST API
+      ↕
+Prisma ORM
+      ↕
+MySQL
+```
+
+### Backend Goal
+
+> Build a secure, maintainable, and scalable backend that replaces the existing PHP backend while providing a reliable API for the React frontend.
