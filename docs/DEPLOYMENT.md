@@ -20,13 +20,14 @@ nothing Vercel-specific is needed there.
 
 ## Environments vs. branches
 
-Vercel has **three** built-in environments — don't confuse the "Development" one with this repo's
-`dev` git branch, they're unrelated:
+Vercel has **three** built-in environments — don't confuse Vercel's own "Development" environment
+with this repo's `development` git branch; despite the shared name they're unrelated (the branch
+gets a *Preview* deployment, not Vercel's "Development" environment):
 
 | Vercel environment | What it's for | Maps to (this repo) |
 |---|---|---|
 | Production | The live site. One branch, set in Project Settings → Git → Production Branch | `main` |
-| Preview | Every branch/PR that isn't the Production Branch gets its own throwaway URL | `dev` and every `TICKETNUMBER-TICKETTITLE` branch |
+| Preview | Every branch/PR that isn't the Production Branch gets its own throwaway URL | `development` and every `TICKETNUMBER-TICKETTITLE` branch |
 | Development | Not a deployment at all — only feeds `vercel dev` / `vercel env pull` for local work | n/a (local machine, not CI) |
 
 ## Environment variables
@@ -35,7 +36,7 @@ Set per-environment in the Vercel dashboard under Project Settings → Environme
 tab, the screen has a dropdown for Development/Preview/Production). Values, matching
 `.env.example`:
 
-| Variable | Development | Preview (`dev` / feature branches) | Production (`main`) |
+| Variable | Development | Preview (`development` / feature branches) | Production (`main`) |
 |---|---|---|---|
 | `VITE_API_URL` | `http://localhost:3000/api` | staging backend URL once one exists, else leave unset | the real deployed backend URL (see [BACKEND_REQUIREMENTS.md](BACKEND_REQUIREMENTS.md)), once it exists |
 | `VITE_USE_MOCKS` | `true` | `true` | `true` for now — flip to `false` once the real backend from `BACKEND_REQUIREMENTS.md` is live |
@@ -92,6 +93,6 @@ Vercel's native integration.
 
 1. Push to a feature branch / open a PR → Vercel's native integration builds a preview deployment,
    linked in the PR checks.
-2. Merge into `dev` → preview deployment for `dev` updates.
-3. `dev` merged into `main` (per [WORKFLOW.md](WORKFLOW.md)) → the GitHub Actions workflow above
+2. Merge into `development` → preview deployment for `development` updates.
+3. `development` merged into `main` (per [WORKFLOW.md](WORKFLOW.md)) → the GitHub Actions workflow above
    builds and deploys to Production.
