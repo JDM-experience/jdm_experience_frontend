@@ -19,6 +19,7 @@ server beyond `vite dev` itself.
 |---|---|
 | Main contact | achilleslucas79+development@gmail.com |
 | Issue tracker | [Jira — JEA board](https://achilleslucas79.atlassian.net/jira/software/projects/JEA/list?jql=project+%3D+JEA+ORDER+BY+cf%5B10019%5D+ASC) |
+| Frontend repo | [JDM-experience/jdm_experience_frontend](https://github.com/JDM-experience/jdm_experience_frontend) |
 | Backend repo | [jdm_experience_backend](https://github.com/achilleslucas79-bot/jdm_experience_backend) |
 
 ## What this is (and isn't)
