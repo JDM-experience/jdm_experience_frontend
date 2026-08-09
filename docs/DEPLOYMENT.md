@@ -2,9 +2,10 @@
 
 Vercel project: https://vercel.com/acme-3452/jdm-experience-frontend
 
-Production deploys to Vercel are driven by the GitHub Actions workflow at
-[.github/workflows/deploy-production.yml](../.github/workflows/deploy-production.yml) (see
-§ [CI/CD](#cicd-github-actions) below), not Vercel's own Git integration.
+**Current state:** Vercel's own Git integration deploys every push (Production from `main`,
+Preview from everything else) — this is what's actually live today. A GitHub Actions workflow to
+take over Production deploys has been written but isn't wired up yet; see
+[§ TODO](#todo--switch-production-deploys-to-github-actions).
 
 ## Build settings
 
@@ -58,10 +59,28 @@ so `react-router-dom` can take over client-side:
 }
 ```
 
-## CI/CD (GitHub Actions)
+## TODO — switch production deploys to GitHub Actions
 
-[.github/workflows/deploy-production.yml](../.github/workflows/deploy-production.yml) runs on
-every push to `main`:
+- [x] Workflow written: [.github/workflows/deploy-production.yml](../.github/workflows/deploy-production.yml)
+- [x] Ignored Build Step script written: [scripts/vercel-ignore-build.sh](../scripts/vercel-ignore-build.sh)
+- [x] GitHub repo secrets added (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`)
+- [ ] Merge the branch carrying the workflow + script through `development` → `main` (per
+      [WORKFLOW.md](WORKFLOW.md)) — until then, neither file exists on `main`, so the workflow's
+      `push: branches: [main]` trigger can't fire yet
+- [ ] Only *after* that merge, set Vercel's Ignored Build Step (Project Settings → Git → Ignored
+      Build Step → Custom → `bash scripts/vercel-ignore-build.sh`) — doing this before the merge
+      would make Vercel skip `main` while the Action still can't run there, stopping Production
+      deploys entirely
+- [ ] Verify: push to `main`, confirm the Action's run succeeds and Vercel's dashboard shows the
+      build skipped rather than a duplicate deployment
+
+Until this is done, **do not** touch the Ignored Build Step — leave Vercel deploying `main`
+natively, as it does today.
+
+## CI/CD (GitHub Actions) — not yet active, see TODO above
+
+[.github/workflows/deploy-production.yml](../.github/workflows/deploy-production.yml) is designed
+to run on every push to `main`, once the TODO above is complete:
 
 1. Checkout, install Node (`24`, matching `@types/node` in `package.json`), `npm ci`.
 2. `npm run build` — the app's own production build (`tsc -b && vite build`); a type error or
@@ -73,26 +92,34 @@ every push to `main`:
 Any failed step (build or deploy) fails the job — GitHub Actions stops a job at the first non-zero
 exit by default, nothing in the workflow suppresses that.
 
-**Required repo secrets** (Settings → Secrets and variables → Actions), all scoped to the
-`production` environment the job runs under:
+**Required repo secrets** — GitHub repo → Settings → Secrets and variables → Actions → **New
+repository secret**, add all three (repository-level, not environment-scoped — simpler, and the
+job's `environment: production` will read them either way):
 
 | Secret | Where to get it |
 |---|---|
-| `VERCEL_TOKEN` | Vercel → Account Settings → Tokens |
-| `VERCEL_ORG_ID` | `.vercel/project.json` after running `vercel link` locally, or Vercel project Settings → General |
-| `VERCEL_PROJECT_ID` | same as above |
+| `VERCEL_TOKEN` | Vercel → click your avatar → Account Settings → Tokens → Create Token. Copy it immediately, it's shown once. |
+| `VERCEL_ORG_ID` | The team's ID: Vercel → `acme-3452` team → Settings → General → "Team ID" |
+| `VERCEL_PROJECT_ID` | The project's ID: Vercel project → Settings → General → "Project ID" |
 
-**Avoid double deploys:** if this repo is also connected to Vercel's own GitHub integration with
-`main` as the Production Branch, *both* that integration and this workflow will try to deploy on
-every push to `main`. Turn off Vercel's automatic deployments for Production (Project Settings →
-Git → “Ignored Build Step” or disconnect the GitHub integration's auto-deploy) so this workflow is
-the only thing promoting to Production — Preview deployments for other branches/PRs can stay on
-Vercel's native integration.
+Before secrets exist, this workflow fails at the `vercel pull` step with an auth error — that's
+expected, not a bug, until all three are added.
 
-## Deploy flow
+**Avoid double deploys:** Vercel's own GitHub integration deploys automatically with zero repo
+secrets (it authenticates separately) — that's what's been deploying every push so far, entirely
+independent of this workflow. Once the workflow above is live, *both* it and Vercel's integration
+will try to deploy `main` on every push unless one is turned off. Rather than deploying Production
+twice, add [scripts/vercel-ignore-build.sh](../scripts/vercel-ignore-build.sh) as Vercel's
+**Ignored Build Step** (Project Settings → Git → Ignored Build Step → Custom → enter
+`bash scripts/vercel-ignore-build.sh`). It skips Vercel's own build only on `main`, so:
+- `main` → only the GitHub Actions workflow deploys Production.
+- `development` / ticket branches → Vercel's native integration still auto-builds Preview, unchanged.
+
+## Deploy flow (current — until the TODO above is done)
 
 1. Push to a feature branch / open a PR → Vercel's native integration builds a preview deployment,
    linked in the PR checks.
 2. Merge into `development` → preview deployment for `development` updates.
-3. `development` merged into `main` (per [WORKFLOW.md](WORKFLOW.md)) → the GitHub Actions workflow above
-   builds and deploys to Production.
+3. `development` merged into `main` (per [WORKFLOW.md](WORKFLOW.md)) → Vercel's native integration
+   builds and deploys straight to Production. (Once the TODO above ships, this step becomes the
+   GitHub Actions workflow instead.)
