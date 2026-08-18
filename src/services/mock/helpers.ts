@@ -7,11 +7,18 @@ export function delay(ms = 400): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// This mock db predates Auth0 and only ever modeled shop customers, so the fields the real
+// `users` table gained for auth (role/username/authProvider/isActive) aren't tracked here —
+// every mock record is a plain customer.
 export function toPublicUser(record: MockUserRecord): User {
   return {
     id: record.id,
     fullName: record.fullName,
     email: record.email,
+    username: null,
+    role: 'CUSTOMER',
+    authProvider: 'LOCAL',
+    isActive: true,
     createdAt: record.createdAt,
   };
 }

@@ -1,29 +1,14 @@
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'TOUR_GUIDE' | 'CUSTOMER';
+
+/** The authenticated user profile — mirrors the real backend's `PublicUser` shape
+ *  (`jdm_experience_backend`'s `src/types/dto.ts`), returned by `GET /api/auth/me`. */
 export interface User {
   id: number;
-  fullName: string;
+  fullName: string | null;
   email: string;
+  username: string | null;
+  role: UserRole;
+  authProvider: string;
+  isActive: boolean;
   createdAt: string;
-}
-
-export interface LoginInput {
-  email: string;
-  password: string;
-}
-
-export interface RegisterInput {
-  fullName: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-}
-
-export interface UpdateProfileInput {
-  fullName: string;
-  email: string;
-}
-
-export interface ChangePasswordInput {
-  currentPassword: string;
-  newPassword: string;
-  confirmPassword: string;
 }

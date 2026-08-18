@@ -1,23 +1,62 @@
-import { BrowserRouter } from 'react-router-dom';
+import { useCallback } from 'react';
+import type { ReactNode } from 'react';
+import { BrowserRouter, useNavigate } from 'react-router-dom';
 import { App as AntdApp, ConfigProvider } from 'antd';
+import { Auth0Provider } from '@auth0/auth0-react';
+import type { AppState } from '@auth0/auth0-react';
 import { ANTD_THEME } from '@/constants';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { AdminAuthProvider } from '@/contexts/AdminAuthContext';
 import { CartProvider } from '@/contexts/CartContext';
 import { RouteMain } from '@/routes/RouteMain';
 
+const AUTH0_DOMAIN = import.meta.env.VITE_AUTH0_DOMAIN;
+const AUTH0_CLIENT_ID = import.meta.env.VITE_AUTH0_CLIENT_ID;
+const AUTH0_AUDIENCE = import.meta.env.VITE_AUTH0_AUDIENCE;
+
+/**
+ * Auth0Provider needs router context to restore the pre-login route after Universal Login
+ * redirects back (`appState.returnTo`) — so it's nested inside BrowserRouter and restores the
+ * URL via `useNavigate` rather than a raw `window.history` call, which would desync React
+ * Router's internal state from the URL bar (RR doesn't observe history mutations it didn't
+ * make itself).
+ */
+function Auth0ProviderWithNavigate({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
+
+  const onRedirectCallback = useCallback(
+    (appState?: AppState) => {
+      navigate(appState?.returnTo ?? window.location.pathname, { replace: true });
+    },
+    [navigate],
+  );
+
+  return (
+    <Auth0Provider
+      domain={AUTH0_DOMAIN}
+      clientId={AUTH0_CLIENT_ID}
+      authorizationParams={{ redirect_uri: window.location.origin, audience: AUTH0_AUDIENCE }}
+      onRedirectCallback={onRedirectCallback}
+    >
+      {children}
+    </Auth0Provider>
+  );
+}
+
 function App() {
   return (
     <ConfigProvider theme={ANTD_THEME}>
       <AntdApp>
         <BrowserRouter>
-          <AdminAuthProvider>
-            <AuthProvider>
-              <CartProvider>
-                <RouteMain />
-              </CartProvider>
-            </AuthProvider>
-          </AdminAuthProvider>
+          <Auth0ProviderWithNavigate>
+            <AdminAuthProvider>
+              <AuthProvider>
+                <CartProvider>
+                  <RouteMain />
+                </CartProvider>
+              </AuthProvider>
+            </AdminAuthProvider>
+          </Auth0ProviderWithNavigate>
         </BrowserRouter>
       </AntdApp>
     </ConfigProvider>

@@ -1,62 +1,49 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo } from 'react';
 import type { ReactNode } from 'react';
-import * as adminAuthService from '@/services/adminAuthService';
-import type { AdminLoginInput, AdminUser } from '@/types/admin';
-
-const STORAGE_KEY = 'jdm_admin_auth_v1';
+import { useAuth0 } from '@auth0/auth0-react';
+import { useAuthenticatedUser } from '@/hooks/useAuthenticatedUser';
+import type { AdminUser } from '@/types/admin';
 
 interface AdminAuthContextValue {
   admin: AdminUser | null;
   isAuthenticated: boolean;
   isInitializing: boolean;
-  login: (input: AdminLoginInput) => Promise<AdminUser>;
+  /** `returnTo` defaults to `/admin/dashboard` — the fixed post-login landing page for the
+   *  admin panel, since AdminLogin has no `?redirect=` deep-link fallback to honor. */
+  login: (returnTo?: string) => void;
   logout: () => void;
 }
 
 const AdminAuthContext = createContext<AdminAuthContextValue | undefined>(undefined);
 
-function readStoredAdmin(): AdminUser | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as AdminUser) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredAdmin(admin: AdminUser | null): void {
-  try {
-    if (admin) localStorage.setItem(STORAGE_KEY, JSON.stringify(admin));
-    else localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // localStorage unavailable — session simply won't persist across reloads.
-  }
-}
-
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
-  const [admin, setAdmin] = useState<AdminUser | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
+  const { loginWithRedirect, logout: auth0Logout, isAuthenticated: auth0Authenticated } = useAuth0();
+  const { profile, isLoading } = useAuthenticatedUser();
 
-  useEffect(() => {
-    setAdmin(readStoredAdmin());
-    setIsInitializing(false);
-  }, []);
-
-  const login = useCallback(async (input: AdminLoginInput) => {
-    const loggedInAdmin = await adminAuthService.adminLogin(input);
-    setAdmin(loggedInAdmin);
-    writeStoredAdmin(loggedInAdmin);
-    return loggedInAdmin;
-  }, []);
+  const login = useCallback(
+    (returnTo: string = '/admin/dashboard') => {
+      loginWithRedirect({ appState: { returnTo } }).catch((error: unknown) => {
+        console.error('[Auth0] loginWithRedirect failed:', error);
+      });
+    },
+    [loginWithRedirect],
+  );
 
   const logout = useCallback(() => {
-    setAdmin(null);
-    writeStoredAdmin(null);
-  }, []);
+    auth0Logout({ logoutParams: { returnTo: window.location.origin } }).catch((error: unknown) => {
+      console.error('[Auth0] logout failed:', error);
+    });
+  }, [auth0Logout]);
 
   const value = useMemo<AdminAuthContextValue>(
-    () => ({ admin, isAuthenticated: admin !== null, isInitializing, login, logout }),
-    [admin, isInitializing, login, logout],
+    () => ({
+      admin: profile,
+      isAuthenticated: auth0Authenticated && profile !== null,
+      isInitializing: isLoading,
+      login,
+      logout,
+    }),
+    [profile, auth0Authenticated, isLoading, login, logout],
   );
 
   return <AdminAuthContext.Provider value={value}>{children}</AdminAuthContext.Provider>;
