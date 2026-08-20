@@ -129,7 +129,7 @@ export function Navbar() {
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
             <Space style={{ cursor: 'pointer' }}>
               <UserOutlined style={{ fontSize: 18 }} />
-              {!isMobile && <span style={{ fontWeight: 600 }}>Hi, {user?.fullName.split(' ')[0]}</span>}
+              {!isMobile && <span style={{ fontWeight: 600 }}>Hi, {(user?.fullName ?? user?.email)?.split(' ')[0]}</span>}
             </Space>
           </Dropdown>
         ) : (

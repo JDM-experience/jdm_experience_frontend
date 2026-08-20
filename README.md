@@ -11,7 +11,8 @@ server beyond `vite dev` itself.
 > [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md). For the routing setup, see
 > [docs/ROUTES.md](docs/ROUTES.md). For the Jira/branching workflow, see
 > [docs/WORKFLOW.md](docs/WORKFLOW.md). For the backend work still needed (Jira epic/story
-> source), see [docs/BACKEND_REQUIREMENTS.md](docs/BACKEND_REQUIREMENTS.md).
+> source), see [docs/BACKEND_REQUIREMENTS.md](docs/BACKEND_REQUIREMENTS.md). For hosting/CI-CD, see
+> [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Project info
 
@@ -21,6 +22,9 @@ server beyond `vite dev` itself.
 | Issue tracker | [Jira — JEA board](https://achilleslucas79.atlassian.net/jira/software/projects/JEA/list?jql=project+%3D+JEA+ORDER+BY+cf%5B10019%5D+ASC) |
 | Frontend repo | [JDM-experience/jdm_experience_frontend](https://github.com/JDM-experience/jdm_experience_frontend) |
 | Backend repo | [jdm_experience_backend](https://github.com/achilleslucas79-bot/jdm_experience_backend) |
+| Hosting | [Vercel](https://vercel.com/acme-3452/jdm-experience-frontend) |
+| Production site | https://jdm-experience-frontend.vercel.app/ |
+| Development site | https://jdm-experience-frontend-git-development-acme-3452.vercel.app/ |
 
 ## What this is (and isn't)
 

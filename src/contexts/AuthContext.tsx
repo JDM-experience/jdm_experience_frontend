@@ -1,95 +1,67 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
-import * as authService from '@/services/authService';
-import type { ChangePasswordInput, LoginInput, RegisterInput, UpdateProfileInput, User } from '@/types/user';
+import { useAuth0 } from '@auth0/auth0-react';
+import { useAuthenticatedUser } from '@/hooks/useAuthenticatedUser';
+import type { User } from '@/types/user';
 
-const STORAGE_KEY = 'jdm_auth_user_v1';
+interface LoginOptions {
+  /** Where to land after Auth0 redirects back. Defaults to the current path — pass the
+   *  `?redirect=` target from ProtectedRoute when logging in from a bounced deep link. */
+  returnTo?: string;
+  /** Sends the user straight to Auth0 Universal Login's sign-up tab. */
+  screenHint?: 'signup';
+}
 
 interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isInitializing: boolean;
-  login: (input: LoginInput) => Promise<User>;
-  register: (input: RegisterInput) => Promise<User>;
+  login: (options?: LoginOptions) => void;
   logout: () => void;
-  updateProfile: (input: UpdateProfileInput) => Promise<User>;
-  changePassword: (input: ChangePasswordInput) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function readStoredUser(): User | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as User) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredUser(user: User | null): void {
-  try {
-    if (user) localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    else localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // localStorage unavailable — session simply won't persist across reloads.
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
+  const { loginWithRedirect, logout: auth0Logout, isAuthenticated: auth0Authenticated, error: auth0Error } = useAuth0();
+  const { profile, isLoading } = useAuthenticatedUser();
 
+  // auth0-react doesn't console.error internal failures (bad audience, callback URL mismatch,
+  // failed code exchange, etc.) — it just sets this field. Without surfacing it, a failed
+  // redirect callback looks identical to "nothing happened."
   useEffect(() => {
-    setUser(readStoredUser());
-    setIsInitializing(false);
-  }, []);
+    if (auth0Error) console.error('[Auth0] error state:', auth0Error.message, auth0Error);
+  }, [auth0Error]);
 
-  const login = useCallback(async (input: LoginInput) => {
-    const loggedInUser = await authService.login(input);
-    setUser(loggedInUser);
-    writeStoredUser(loggedInUser);
-    return loggedInUser;
-  }, []);
-
-  const register = useCallback(async (input: RegisterInput) => authService.register(input), []);
+  const login = useCallback(
+    (options?: LoginOptions) => {
+      loginWithRedirect({
+        appState: { returnTo: options?.returnTo ?? `${window.location.pathname}${window.location.search}` },
+        authorizationParams: options?.screenHint ? { screen_hint: options.screenHint } : undefined,
+      }).catch((error: unknown) => {
+        // loginWithRedirect normally never resolves (the page navigates away first) — a
+        // rejection here means it failed before that, e.g. misconfigured domain/clientId.
+        console.error('[Auth0] loginWithRedirect failed:', error);
+      });
+    },
+    [loginWithRedirect],
+  );
 
   const logout = useCallback(() => {
-    setUser(null);
-    writeStoredUser(null);
-  }, []);
-
-  const updateProfile = useCallback(
-    async (input: UpdateProfileInput) => {
-      if (!user) throw new Error('Not authenticated.');
-      const updated = await authService.updateProfile(user.id, input);
-      setUser(updated);
-      writeStoredUser(updated);
-      return updated;
-    },
-    [user],
-  );
-
-  const changePassword = useCallback(
-    async (input: ChangePasswordInput) => {
-      if (!user) throw new Error('Not authenticated.');
-      await authService.changePassword(user.id, input);
-    },
-    [user],
-  );
+    auth0Logout({ logoutParams: { returnTo: window.location.origin } }).catch((error: unknown) => {
+      console.error('[Auth0] logout failed:', error);
+    });
+  }, [auth0Logout]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      user,
-      isAuthenticated: user !== null,
-      isInitializing,
+      user: profile,
+      isAuthenticated: auth0Authenticated && profile !== null,
+      isInitializing: isLoading,
       login,
-      register,
       logout,
-      updateProfile,
-      changePassword,
     }),
-    [user, isInitializing, login, register, logout, updateProfile, changePassword],
+    [profile, auth0Authenticated, isLoading, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

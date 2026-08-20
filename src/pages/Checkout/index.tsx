@@ -129,7 +129,7 @@ export default function Checkout() {
       <Form<CheckoutFormValues>
         form={form}
         layout="vertical"
-        initialValues={{ name: user?.fullName, email: user?.email }}
+        initialValues={{ name: user?.fullName ?? undefined, email: user?.email }}
         onFinish={handleFinish}
       >
         <Row gutter={40}>
