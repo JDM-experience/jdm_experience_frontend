@@ -1,7 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from '@/routes/ProtectedRoute';
+import { GuestOnlyRoute } from '@/routes/GuestOnlyRoute';
 import { AdminProtectedRoute } from '@/routes/AdminProtectedRoute';
-import { publicRoutes } from '@/routes/public';
+import { publicRoutes, guestOnlyRoutes } from '@/routes/public';
 import { clientRoutes } from '@/routes/client';
 import { adminRoutes } from '@/routes/admin';
 import { MainLayout } from '@/layouts/MainLayout';
@@ -18,6 +19,12 @@ export function RouteMain() {
           <Route key={path ?? 'index'} index={index} path={path} element={element} />
         ))}
 
+        <Route element={<GuestOnlyRoute />}>
+          {guestOnlyRoutes.map(({ path, element }) => (
+            <Route key={path} path={path} element={element} />
+          ))}
+        </Route>
+
         <Route element={<ProtectedRoute />}>
           {clientRoutes.map(({ path, element }) => (
             <Route key={path} path={path} element={element} />
@@ -26,7 +33,9 @@ export function RouteMain() {
       </Route>
 
       <Route path="admin/login" element={<AdminLogin />} />
+      
       <Route path="admin" element={<Navigate to="/admin/dashboard" replace />} />
+
       <Route element={<AdminProtectedRoute />}>
         <Route element={<AdminLayout />}>
           {adminRoutes.map(({ path, element }) => (

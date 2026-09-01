@@ -1,10 +1,7 @@
-// Mirrors the real backend's toPublicTour() shape (jdm_experience_backend_real's
-// src/services/tour.service.ts) field-for-field. Distinct from the legacy `Product` type
-// (src/types/product.ts), which the mock-based Cart/Checkout flow still uses.
-
+/** Mirrors the Node.js backend's Tour shape (see jdm_experience_backend/src/validators/tour.validator.ts). */
 export type TourStatus = 'DRAFT' | 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
 
-export interface TourGuideInfo {
+export interface TourGuide {
   id: number;
   userId: number;
   fullName: string | null;
@@ -34,7 +31,7 @@ export interface Tour {
   currency: string;
   status: TourStatus;
   capacity: number;
-  guide: TourGuideInfo | null;
+  guide: TourGuide | null;
   images: TourImage[];
   availability: TourAvailability[];
   createdAt: string;
@@ -50,6 +47,28 @@ export interface CreateTourInput {
   status?: TourStatus;
   capacity?: number;
   guideId?: number | null;
+  /** Images already uploaded via uploadService — attaches them in the same create request. Max 20. */
+  images?: CreateTourImageInput[];
 }
 
-export type UpdateTourInput = Partial<CreateTourInput>;
+export interface UpdateTourInput {
+  name?: string;
+  slug?: string;
+  description?: string;
+  price?: number;
+  currency?: string;
+  status?: TourStatus;
+  capacity?: number;
+  guideId?: number | null;
+}
+
+export interface CreateTourImageInput {
+  imageUrl: string;
+  sortOrder?: number;
+}
+
+export interface CreateTourAvailabilityInput {
+  /** ISO 8601 datetime with an explicit UTC offset, e.g. `2026-09-01T09:00:00+09:00`. */
+  startDatetime: string;
+  spotsRemaining: number;
+}

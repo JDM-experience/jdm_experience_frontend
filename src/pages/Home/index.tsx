@@ -5,8 +5,8 @@ import { CalendarOutlined, CarOutlined, ClockCircleOutlined } from '@ant-design/
 import { TourCard } from '@/components/common/TourCard';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
-import { getFeaturedProducts } from '@/services/productService';
-import type { Product } from '@/types/product';
+import { listTours } from '@/services/tourService';
+import type { Tour } from '@/types/tour';
 
 const FEATURES = [
   {
@@ -27,12 +27,12 @@ const FEATURES = [
 ];
 
 export default function Home() {
-  const [tours, setTours] = useState<Product[]>([]);
+  const [tours, setTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getFeaturedProducts()
-      .then(setTours)
+    listTours({ status: 'ACTIVE' })
+      .then((results) => setTours([...results].sort((a, b) => b.id - a.id).slice(0, 8)))
       .finally(() => setLoading(false));
   }, []);
 
@@ -82,7 +82,7 @@ export default function Home() {
           <Row gutter={[24, 24]}>
             {tours.map((tour) => (
               <Col key={tour.id} xs={24} sm={12} md={8} lg={6}>
-                <TourCard product={tour} />
+                <TourCard tour={tour} />
               </Col>
             ))}
           </Row>

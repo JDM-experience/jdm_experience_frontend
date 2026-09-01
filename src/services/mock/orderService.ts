@@ -1,10 +1,12 @@
 import { getDb, saveDb } from './db';
-import { delay, isProductBookedOnDate } from './helpers';
+import { delay } from './helpers';
 import { getCart, clearCart } from './cartService';
 import { ApiError } from '@/types/api';
 import type { CreateOrderInput, Order, OrderStatus } from '@/types/order';
-import { getAvailabilityForDate } from '@/utils/bookingUtils';
 import { PROMO_CODE, PROMO_DISCOUNT_RATE } from '@/constants';
+// Cart lines now point at real Tours (see cartService.ts) — re-validate against the live
+// backend instead of the mock db.
+import { getTourById } from '@/services/tourService';
 
 /** Ported from checkout.php's POST handler: re-validate every cart line before booking it. */
 export async function createOrder(userId: number | null, input: CreateOrderInput): Promise<Order> {
@@ -17,17 +19,12 @@ export async function createOrder(userId: number | null, input: CreateOrderInput
   }
 
   for (const item of cart.items) {
-    const product = db.products.find((p) => p.id === item.productId);
-    if (!product) {
+    const tour = await getTourById(item.productId);
+    if (!tour) {
       throw new ApiError('One of the selected tours was not found.', 404);
     }
-    const availability = getAvailabilityForDate(
-      product.stock,
-      item.date,
-      isProductBookedOnDate(product.id, item.date),
-    );
-    if (!availability.bookable) {
-      throw new ApiError(availability.message, 409);
+    if (tour.status !== 'ACTIVE') {
+      throw new ApiError(`${tour.name} is not currently available for booking.`, 409);
     }
   }
 

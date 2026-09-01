@@ -5,10 +5,15 @@ import type { MenuProps } from 'antd';
 import { CalendarOutlined, MenuOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
-import { searchSuggestions } from '@/services/productService';
-import type { SearchSuggestion } from '@/services/productService';
+import { listTours } from '@/services/tourService';
 import { formatCurrency } from '@/utils/formatters';
-import { IMAGE_BASE_PATH } from '@/constants';
+
+interface SearchSuggestion {
+  id: number;
+  name: string;
+  price: number;
+  image: string;
+}
 
 const NAV_LINKS = [
   { key: '/', label: 'Home' },
@@ -35,8 +40,17 @@ export function Navbar() {
       return;
     }
     const handle = setTimeout(() => {
-      searchSuggestions(term)
-        .then(setSuggestions)
+      const lower = term.toLowerCase();
+      listTours({ status: 'ACTIVE' })
+        .then((tours) =>
+          setSuggestions(
+            tours
+              .filter((t) => t.name.toLowerCase().includes(lower))
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .slice(0, 20)
+              .map((t) => ({ id: t.id, name: t.name, price: t.price, image: t.images[0]?.imageUrl ?? '' })),
+          ),
+        )
         .catch(() => setSuggestions([]));
     }, 250);
     return () => clearTimeout(handle);
@@ -54,7 +68,7 @@ export function Navbar() {
     key: item.id,
     label: (
       <Space onClick={() => navigate(`/tours/${item.id}`)}>
-        <Avatar shape="square" src={`${IMAGE_BASE_PATH}${item.image}`} />
+        <Avatar shape="square" src={item.image} />
         <span>
           <div style={{ fontWeight: 600 }}>{item.name}</div>
           <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>{formatCurrency(item.price)}</div>
