@@ -31,6 +31,27 @@ function Auth0ProviderWithNavigate({ children }: { children: ReactNode }) {
     [navigate],
   );
 
+  // Belt-and-suspenders alongside vite.config.ts's build-time check (which should already have
+  // caught this in CI) — if a deployment still ships without these, render a clear error instead
+  // of silently mounting Auth0Provider with domain="undefined", which sends login to
+  // https://undefined/authorize.
+  if (!AUTH0_DOMAIN || !AUTH0_CLIENT_ID || !AUTH0_AUDIENCE) {
+    const missing = [
+      !AUTH0_DOMAIN && 'VITE_AUTH0_DOMAIN',
+      !AUTH0_CLIENT_ID && 'VITE_AUTH0_CLIENT_ID',
+      !AUTH0_AUDIENCE && 'VITE_AUTH0_AUDIENCE',
+    ].filter(Boolean);
+    return (
+      <div style={{ padding: 40, fontFamily: 'system-ui, sans-serif', maxWidth: 640, margin: '0 auto' }}>
+        <h1>Configuration error</h1>
+        <p>
+          Missing required environment variable(s): <strong>{missing.join(', ')}</strong>. Set these in this
+          deployment&apos;s environment and redeploy.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <Auth0Provider
       domain={AUTH0_DOMAIN}
