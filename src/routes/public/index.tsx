@@ -19,9 +19,13 @@ export const publicRoutes: AppRoute[] = [
   { path: 'weather', element: <Weather /> },
   { path: 'cart', element: <Cart /> },
   { path: 'thank-you/:orderId', element: <ThankYou /> },
-  { path: 'login', element: <Login /> },
-  { path: 'register', element: <Register /> },
   { path: 'about', element: <About /> },
   { path: 'contact', element: <Contact /> },
   { path: 'policy', element: <Policy /> },
+];
+
+/** Routes that only make sense for a signed-out visitor — bounced elsewhere once authenticated. */
+export const guestOnlyRoutes: AppRoute[] = [
+  { path: 'login', element: <Login /> },
+  { path: 'register', element: <Register /> },
 ];

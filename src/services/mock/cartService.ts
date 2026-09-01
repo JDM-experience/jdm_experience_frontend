@@ -1,8 +1,11 @@
-import { getDb } from './db';
-import { delay, isProductBookedOnDate } from './helpers';
+import { delay } from './helpers';
 import { ApiError } from '@/types/api';
 import type { AddToCartInput, CartSummary, UpdateCartItemInput } from '@/types/cart';
-import { effectivePrice, getAvailabilityForDate, isValidDateString, isValidTimeString } from '@/utils/bookingUtils';
+import { isValidDateString, isValidTimeString } from '@/utils/bookingUtils';
+// The cart itself is still a sessionStorage mock, but every line now points at a real Tour
+// (from the live GET /tours API) rather than the legacy mock `products` table — so lines are
+// re-validated against the real backend instead of the mock db.
+import { getTourById } from '@/services/tourService';
 
 /**
  * Raw reservation lines, equivalent to PHP's `$_SESSION['cart']`. Kept in
@@ -44,33 +47,33 @@ function assertValidBookingDetails(date: string, time: string, quantity: number)
 /** Ported from cart_helpers.php::normalize_cart_items(). */
 export async function getCart(): Promise<CartSummary> {
   await delay(200);
-  const db = getDb();
   const lines = loadRawCart();
 
-  const items = lines
-    .map((line, index) => {
-      const product = db.products.find((p) => p.id === line.productId);
-      if (!product) return null;
-      const price = effectivePrice(product.price, product.discount);
+  const resolved = await Promise.all(
+    lines.map(async (line, index) => {
+      const tour = await getTourById(line.productId);
+      if (!tour) return null;
       // Tour price is flat per booking, not per seat — quantity does not multiply the price.
-      const subtotal = price;
+      const subtotal = tour.price;
+      const seatCapacity: 1 | 4 = tour.capacity >= 4 ? 4 : 1;
       return {
         index,
-        productId: product.id,
-        name: product.name,
-        image: product.image1,
+        productId: tour.id,
+        name: tour.name,
+        image: tour.images[0]?.imageUrl ?? '',
         date: line.date,
         time: line.time,
         quantity: line.quantity,
-        basePrice: product.price,
-        discount: product.discount,
-        price,
+        basePrice: tour.price,
+        discount: 0,
+        price: tour.price,
         subtotal,
-        stock: product.stock,
-        seatCapacity: product.seatCapacity,
+        stock: 1,
+        seatCapacity,
       };
-    })
-    .filter((item): item is NonNullable<typeof item> => item !== null);
+    }),
+  );
+  const items = resolved.filter((item): item is NonNullable<typeof item> => item !== null);
 
   const total = items.reduce((sum, item) => sum + item.subtotal, 0);
   return { items, total };
@@ -84,22 +87,9 @@ export async function addToCart(input: AddToCartInput): Promise<void> {
   await delay();
   assertValidBookingDetails(input.date, input.time, input.quantity);
 
-  const db = getDb();
-  const product = db.products.find((p) => p.id === input.productId);
-  if (!product) throw new ApiError('Tour not found.', 404);
-
-  if (input.quantity > product.seatCapacity) {
-    throw new ApiError(`This tour seats up to ${product.seatCapacity}.`, 400);
-  }
-
-  const availability = getAvailabilityForDate(
-    product.stock,
-    input.date,
-    isProductBookedOnDate(product.id, input.date),
-  );
-  if (!availability.bookable) {
-    throw new ApiError(availability.message, 409);
-  }
+  const tour = await getTourById(input.productId);
+  if (!tour) throw new ApiError('Tour not found.', 404);
+  if (tour.status !== 'ACTIVE') throw new ApiError('This tour is not currently available for booking.', 409);
 
   const lines = loadRawCart();
   const duplicate = lines.some(
@@ -121,22 +111,9 @@ export async function updateCartItem(input: UpdateCartItemInput): Promise<void> 
   const existing = lines[input.index];
   if (!existing) throw new ApiError('Invalid booking details.', 400);
 
-  const db = getDb();
-  const product = db.products.find((p) => p.id === existing.productId);
-  if (!product) throw new ApiError('Tour not found.', 404);
-
-  if (input.quantity > product.seatCapacity) {
-    throw new ApiError(`This tour seats up to ${product.seatCapacity}.`, 400);
-  }
-
-  const availability = getAvailabilityForDate(
-    product.stock,
-    input.date,
-    isProductBookedOnDate(product.id, input.date),
-  );
-  if (!availability.bookable) {
-    throw new ApiError(availability.message, 409);
-  }
+  const tour = await getTourById(existing.productId);
+  if (!tour) throw new ApiError('Tour not found.', 404);
+  if (tour.status !== 'ACTIVE') throw new ApiError('This tour is not currently available for booking.', 409);
 
   const duplicate = lines.some(
     (line, idx) =>

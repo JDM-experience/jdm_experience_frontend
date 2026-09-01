@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button, Card, Col, Row, Statistic, Typography } from 'antd';
 import { CarOutlined, CalendarOutlined, MailOutlined, UserOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
-import { getProducts } from '@/services/productService';
+import { listTours } from '@/services/tourService';
 import { getAllOrders } from '@/services/orderService';
 import { getCustomers } from '@/services/customerService';
 import { getMessages } from '@/services/messageService';
@@ -38,7 +38,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
   useEffect(() => {
-    Promise.all([getProducts(), getAllOrders(), getCustomers(), getMessages()]).then(
+    Promise.all([listTours(), getAllOrders(), getCustomers(), getMessages()]).then(
       ([tours, orders, customers, messages]) => {
         setStats({ tours: tours.length, reservations: orders.length, customers: customers.length, messages: messages.length });
       },
