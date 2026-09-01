@@ -12,12 +12,14 @@ import {
   Table,
   Tag,
   Typography,
+  Upload,
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import type { UploadProps } from 'antd';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import { DeleteOutlined, EditOutlined, PictureOutlined, PlusOutlined, ScheduleOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, PictureOutlined, PlusOutlined, ScheduleOutlined, UploadOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import {
@@ -32,6 +34,7 @@ import {
   updateTour,
 } from '@/services/tourService';
 import { listUsers } from '@/services/adminUserService';
+import { uploadTourImage } from '@/services/uploadService';
 import { getErrorMessage } from '@/utils/errors';
 import type { CreateTourInput, Tour, TourStatus } from '@/types/tour';
 import type { ManagedUser } from '@/types/managedUser';
@@ -189,6 +192,26 @@ export default function AdminTours() {
       setAddingImage(false);
     }
   }
+
+  const uploadProps: UploadProps = {
+    accept: 'image/jpeg,image/png,image/webp,image/gif',
+    maxCount: 1,
+    showUploadList: false,
+    customRequest: async ({ file, onSuccess, onError }) => {
+      if (!imagesTour) return;
+      try {
+        const url = await uploadTourImage(file as File);
+        const image = await addTourImage(imagesTour.id, url, imagesTour.images.length);
+        setImagesTour((prev) => (prev ? { ...prev, images: [...prev.images, image] } : prev));
+        fetchTours();
+        onSuccess?.(image);
+        message.success('Image uploaded.');
+      } catch (error) {
+        onError?.(error as Error);
+        message.error(getErrorMessage(error, 'Unable to upload this image.'));
+      }
+    },
+  };
 
   async function handleRemoveImage(imageId: number) {
     if (!imagesTour) return;
@@ -353,10 +376,6 @@ export default function AdminTours() {
         onCancel={() => setImagesTour(null)}
         footer={null}
       >
-        <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
-          Paste a link to an already-hosted image (this backend doesn't have file upload/storage —
-          host the image elsewhere first, e.g. an image host or CDN, then paste its URL here).
-        </Typography.Paragraph>
         <Space wrap style={{ marginBottom: 16 }}>
           {imagesTour?.images.map((img) => (
             <div key={img.id} style={{ position: 'relative' }}>
@@ -371,6 +390,16 @@ export default function AdminTours() {
             </div>
           ))}
         </Space>
+
+        <Upload {...uploadProps}>
+          <Button icon={<UploadOutlined />} block>
+            Upload Image (JPEG/PNG/WebP/GIF, max 5MB)
+          </Button>
+        </Upload>
+
+        <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginTop: 12, marginBottom: 4 }}>
+          Or paste a link to an already-hosted image:
+        </Typography.Paragraph>
         <Space.Compact block>
           <Input
             placeholder="https://example.com/image.jpg"

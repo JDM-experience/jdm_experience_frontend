@@ -51,6 +51,39 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return (await response.json()) as T;
 }
 
+/**
+ * Like `request`, but for a multipart/form-data body (file uploads) — deliberately does NOT
+ * set Content-Type itself. The browser must set it (as `multipart/form-data; boundary=...`,
+ * computed from the actual FormData contents), which is exactly what happens by leaving it
+ * unset on a fetch call with a FormData body; setting it manually breaks the upload.
+ */
+async function uploadRequest<T>(path: string, formData: FormData): Promise<T> {
+  const headers: Record<string, string> = {};
+
+  if (getAccessToken) {
+    try {
+      headers.Authorization = `Bearer ${await getAccessToken()}`;
+    } catch {
+      // No valid Auth0 session (never logged in, or it expired) — proceed unauthenticated.
+    }
+  }
+
+  const response = await fetch(`${API_URL}${path}`, { method: 'POST', headers, body: formData });
+
+  if (!response.ok) {
+    let message = response.statusText;
+    try {
+      const body = (await response.json()) as { message?: string };
+      if (body.message) message = body.message;
+    } catch {
+      // Response had no JSON body — fall back to statusText.
+    }
+    throw new ApiError(message, response.status);
+  }
+
+  return (await response.json()) as T;
+}
+
 export const httpClient = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) =>
@@ -60,4 +93,5 @@ export const httpClient = {
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  upload: <T>(path: string, formData: FormData) => uploadRequest<T>(path, formData),
 };
