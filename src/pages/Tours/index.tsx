@@ -51,7 +51,7 @@ export default function Tours() {
     <section style={{ maxWidth: 1140, margin: '0 auto', padding: '48px 24px' }}>
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
         <Typography.Title level={2}>Tours</Typography.Title>
-        <Typography.Text type="secondary">Choose a tour, view details, and reserve it by date and time.</Typography.Text>
+        <Typography.Text type="secondary">Choose a tour, view details, and reserve it by date.</Typography.Text>
       </div>
 
       <div
@@ -74,7 +74,7 @@ export default function Tours() {
             defaultValue={search}
             onSearch={(value) => updateParam('search', value)}
             allowClear
-            style={{ width: 200 }}
+            style={{ width: '100%', maxWidth: 240 }}
           />
           <Select
             value={category || undefined}

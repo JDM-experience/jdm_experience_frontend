@@ -10,6 +10,9 @@ export interface OrderItem {
   time: string;
   quantity: number;
   price: number;
+  /** Copied from the product's guideId at order-creation time, so a Tour Guide can see/manage
+   *  a reservation without needing a live join back to the (possibly since-changed) tour. */
+  guideId: number | null;
 }
 
 export interface Order {

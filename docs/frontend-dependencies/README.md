@@ -9,6 +9,10 @@ it in the code. See [../ARCHITECTURE.md](../ARCHITECTURE.md) for how these piece
 | TypeScript | in use | [typescript.md](typescript.md) |
 | Ant Design | in use | [antd.md](antd.md) |
 | docx | candidate (not installed) | [docx.md](docx.md) |
+| Leaflet | in use | [leaflet.md](leaflet.md) |
+| react-leaflet | in use | [react-leaflet.md](react-leaflet.md) |
+| @react-oauth/google | in use | [react-oauth-google.md](react-oauth-google.md) |
+| @google-recaptcha/react | in use | [google-recaptcha-react.md](google-recaptcha-react.md) |
 
 When adding a new frontend dependency, add a matching `<name>.md` here and a row in the table
 above.

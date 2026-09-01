@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Alert, Button, Col, Form, Input, Row, Space, Typography } from 'antd';
+import { useEffect, useState } from 'react';
+import { Alert, Button, Col, Form, Input, Row, Space, Spin, Typography } from 'antd';
 import {
   ClockCircleOutlined,
   EnvironmentOutlined,
@@ -10,13 +10,37 @@ import {
   TikTokOutlined,
 } from '@ant-design/icons';
 import { createMessage } from '@/services/messageService';
+import { getContactSettings, getSocialLinks } from '@/services/settingsService';
 import { getErrorMessage } from '@/utils/errors';
 import type { CreateContactMessageInput } from '@/types/contactMessage';
+import type { ContactSettings, SocialLink, SocialPlatform } from '@/types/settings';
+
+const SOCIAL_ICONS: Record<SocialPlatform, React.ReactNode> = {
+  FACEBOOK: <FacebookOutlined style={{ fontSize: 24 }} />,
+  INSTAGRAM: <InstagramOutlined style={{ fontSize: 24 }} />,
+  TIKTOK: <TikTokOutlined style={{ fontSize: 24 }} />,
+};
 
 export default function Contact() {
   const [form] = Form.useForm<CreateContactMessageInput>();
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const [contactInfo, setContactInfo] = useState<ContactSettings | null>(null);
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+  const [infoLoading, setInfoLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([getContactSettings(), getSocialLinks()])
+      .then(([info, links]) => {
+        setContactInfo(info);
+        setSocialLinks(links);
+      })
+      .catch(() => {
+        // Contact info is supplementary to the form below — fail quietly and just show nothing.
+      })
+      .finally(() => setInfoLoading(false));
+  }, []);
 
   async function handleFinish(values: CreateContactMessageInput) {
     setAlert(null);
@@ -31,6 +55,8 @@ export default function Contact() {
       setSubmitting(false);
     }
   }
+
+  const visibleSocialLinks = socialLinks.filter((link) => link.enabled && link.url.trim().length > 0);
 
   return (
     <div style={{ maxWidth: 1140, margin: '0 auto', padding: '64px 24px' }}>
@@ -65,31 +91,51 @@ export default function Contact() {
 
         <Col xs={24} md={12}>
           <Typography.Title level={2}>Contact Information</Typography.Title>
-          <Space orientation="vertical" size="middle">
-            <Typography.Text>
-              <EnvironmentOutlined style={{ marginRight: 8 }} />
-              24 Ligaya Street, Manila, Philippines
-            </Typography.Text>
-            <Typography.Text>
-              <PhoneOutlined style={{ marginRight: 8 }} />
-              +819060804777
-            </Typography.Text>
-            <Typography.Text>
-              <MailOutlined style={{ marginRight: 8 }} />
-              jkonagi0410@gmail.com
-            </Typography.Text>
-            <Typography.Text>
-              <ClockCircleOutlined style={{ marginRight: 8 }} />
-              Mon - Sun: 9AM - 6PM
-            </Typography.Text>
-          </Space>
-          <div style={{ marginTop: 24 }}>
-            <Space size="large">
-              <InstagramOutlined style={{ fontSize: 24 }} />
-              <TikTokOutlined style={{ fontSize: 24 }} />
-              <FacebookOutlined style={{ fontSize: 24 }} />
-            </Space>
-          </div>
+
+          {infoLoading ? (
+            <Spin />
+          ) : (
+            <>
+              <Space orientation="vertical" size="middle">
+                {contactInfo?.address && (
+                  <Typography.Text>
+                    <EnvironmentOutlined style={{ marginRight: 8 }} />
+                    {contactInfo.address}
+                  </Typography.Text>
+                )}
+                {contactInfo?.contactPhone && (
+                  <Typography.Text>
+                    <PhoneOutlined style={{ marginRight: 8 }} />
+                    {contactInfo.contactPhone}
+                  </Typography.Text>
+                )}
+                {contactInfo?.contactEmail && (
+                  <Typography.Text>
+                    <MailOutlined style={{ marginRight: 8 }} />
+                    {contactInfo.contactEmail}
+                  </Typography.Text>
+                )}
+                {contactInfo?.contactHours && (
+                  <Typography.Text>
+                    <ClockCircleOutlined style={{ marginRight: 8 }} />
+                    {contactInfo.contactHours}
+                  </Typography.Text>
+                )}
+              </Space>
+
+              {visibleSocialLinks.length > 0 && (
+                <div style={{ marginTop: 24 }}>
+                  <Space size="large">
+                    {visibleSocialLinks.map((link) => (
+                      <a key={link.platform} href={link.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>
+                        {SOCIAL_ICONS[link.platform]}
+                      </a>
+                    ))}
+                  </Space>
+                </div>
+              )}
+            </>
+          )}
         </Col>
       </Row>
     </div>

@@ -4,12 +4,16 @@ import { Button, Popconfirm, Table, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
+import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { deleteCustomer, getCustomers } from '@/services/customerService';
 import { formatDateTime } from '@/utils/formatters';
 import { getErrorMessage } from '@/utils/errors';
 import type { User } from '@/types/user';
 
 export default function AdminCustomers() {
+  const { admin } = useAdminAuth();
+  const isStaff = admin?.role === 'SUPER_ADMIN' || admin?.role === 'ADMIN';
+
   const [customers, setCustomers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -47,14 +51,16 @@ export default function AdminCustomers() {
               View
             </Button>
           </Link>
-          <Popconfirm
-            title="Are you sure you want to delete this customer? This action cannot be undone."
-            onConfirm={() => handleDelete(customer.id)}
-          >
-            <Button size="small" danger icon={<DeleteOutlined />}>
-              Delete
-            </Button>
-          </Popconfirm>
+          {isStaff && (
+            <Popconfirm
+              title="Are you sure you want to delete this customer? This action cannot be undone."
+              onConfirm={() => handleDelete(customer.id)}
+            >
+              <Button size="small" danger icon={<DeleteOutlined />}>
+                Delete
+              </Button>
+            </Popconfirm>
+          )}
         </>
       ),
     },

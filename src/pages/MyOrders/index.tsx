@@ -50,7 +50,7 @@ export default function MyOrders() {
     {
       title: 'Total Price',
       key: 'subtotal',
-      render: (_, item) => formatCurrency(item.price * item.quantity),
+      render: (_, item) => formatCurrency(item.price),
     },
   ];
 

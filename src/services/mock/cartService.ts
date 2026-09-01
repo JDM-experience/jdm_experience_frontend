@@ -52,7 +52,8 @@ export async function getCart(): Promise<CartSummary> {
       const product = db.products.find((p) => p.id === line.productId);
       if (!product) return null;
       const price = effectivePrice(product.price, product.discount);
-      const subtotal = price * line.quantity;
+      // Tour price is flat per booking, not per seat — quantity does not multiply the price.
+      const subtotal = price;
       return {
         index,
         productId: product.id,
@@ -66,6 +67,7 @@ export async function getCart(): Promise<CartSummary> {
         price,
         subtotal,
         stock: product.stock,
+        seatCapacity: product.seatCapacity,
       };
     })
     .filter((item): item is NonNullable<typeof item> => item !== null);
@@ -85,6 +87,10 @@ export async function addToCart(input: AddToCartInput): Promise<void> {
   const db = getDb();
   const product = db.products.find((p) => p.id === input.productId);
   if (!product) throw new ApiError('Tour not found.', 404);
+
+  if (input.quantity > product.seatCapacity) {
+    throw new ApiError(`This tour seats up to ${product.seatCapacity}.`, 400);
+  }
 
   const availability = getAvailabilityForDate(
     product.stock,
@@ -118,6 +124,10 @@ export async function updateCartItem(input: UpdateCartItemInput): Promise<void> 
   const db = getDb();
   const product = db.products.find((p) => p.id === existing.productId);
   if (!product) throw new ApiError('Tour not found.', 404);
+
+  if (input.quantity > product.seatCapacity) {
+    throw new ApiError(`This tour seats up to ${product.seatCapacity}.`, 400);
+  }
 
   const availability = getAvailabilityForDate(
     product.stock,

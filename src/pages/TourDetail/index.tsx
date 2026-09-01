@@ -2,17 +2,22 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import { Button, Col, DatePicker, Image, InputNumber, Modal, Row, Space, TimePicker, Typography, message } from 'antd';
+import { Button, Col, DatePicker, Image, InputNumber, Modal, Row, Space, Typography, message } from 'antd';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ProductImage } from '@/components/common/ProductImage';
 import { PriceDisplay } from '@/components/common/PriceDisplay';
 import { AvailabilityBadge } from '@/components/common/AvailabilityBadge';
+import { TourWeatherForecast } from '@/components/common/TourWeatherForecast';
+import { CurrencyConverter } from '@/components/common/CurrencyConverter';
+import { TourItineraryMap } from '@/components/common/TourItineraryMap';
 import { useCart } from '@/contexts/CartContext';
 import { checkAvailability, getProductById } from '@/services/productService';
+import { DEFAULT_TOKYO_COORDINATES } from '@/services/weatherService';
 import { effectivePrice, formatTourDate, formatTourTime, getAvailabilityForDate } from '@/utils/bookingUtils';
+import { isBookingAllowed } from '@/utils/dateTime';
 import { getErrorMessage } from '@/utils/errors';
-import { IMAGE_BASE_PATH } from '@/constants';
+import { DEFAULT_BOOKING_TIME, IMAGE_BASE_PATH } from '@/constants';
 import type { AvailabilityResult } from '@/types/availability';
 import type { Product } from '@/types/product';
 
@@ -27,7 +32,6 @@ export default function TourDetail() {
   const [mainImage, setMainImage] = useState('');
 
   const [date, setDate] = useState<Dayjs | null>(null);
-  const [time, setTime] = useState<Dayjs | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [availability, setAvailability] = useState<AvailabilityResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -42,6 +46,10 @@ export default function TourDetail() {
       })
       .finally(() => setLoading(false));
   }, [productId]);
+
+  useEffect(() => {
+    if (product) setQuantity((q) => Math.min(q, product.seatCapacity));
+  }, [product]);
 
   useEffect(() => {
     if (!product) return;
@@ -71,13 +79,15 @@ export default function TourDetail() {
   const gallery = [product.image1, product.image2, product.image3].filter(Boolean);
   const tourPrice = effectivePrice(product.price, product.discount);
 
+  // Frontend-only enforcement of the JST 5PM cutoff — the future Node backend MUST
+  // re-validate an isBookingAllowed()-equivalent check server-side before persisting
+  // a booking; never trust a client-supplied date.
   async function handleReserve() {
-    if (!date || !time) {
-      message.warning('Please select a tour date, tour time, and quantity.');
+    if (!date) {
+      message.warning('Please select a tour date.');
       return;
     }
     const dateStr = date.format('YYYY-MM-DD');
-    const timeStr = time.format('HH:mm');
     setSubmitting(true);
     try {
       await addItem({
@@ -86,10 +96,10 @@ export default function TourDetail() {
         price: tourPrice,
         productImage: product!.image1,
         date: dateStr,
-        time: timeStr,
+        time: DEFAULT_BOOKING_TIME,
         quantity,
       });
-      setConfirmation({ date: dateStr, time: timeStr, quantity });
+      setConfirmation({ date: dateStr, time: DEFAULT_BOOKING_TIME, quantity });
     } catch (error) {
       message.error(getErrorMessage(error, 'Unable to reserve this tour.'));
       checkAvailability(product!.id, dateStr).then(setAvailability);
@@ -135,7 +145,9 @@ export default function TourDetail() {
             {product.name}
           </Typography.Title>
           <PriceDisplay price={product.price} discount={product.discount} />
+          <CurrencyConverter amountJPY={tourPrice} />
           <Typography.Paragraph style={{ marginTop: 16 }}>{product.description}</Typography.Paragraph>
+          <TourItineraryMap />
 
           <div style={{ marginBottom: 16 }}>
             <Typography.Text strong>Availability Status: </Typography.Text>
@@ -153,7 +165,10 @@ export default function TourDetail() {
                 style={{ width: '100%' }}
                 value={date}
                 onChange={setDate}
-                disabledDate={(current) => current && current < dayjs().startOf('day')}
+                disabledDate={(current) =>
+                  Boolean(current && current < dayjs().startOf('day')) ||
+                  !isBookingAllowed(current?.format('YYYY-MM-DD') ?? '')
+                }
               />
               <div>
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -163,13 +178,19 @@ export default function TourDetail() {
             </div>
 
             <div>
-              <Typography.Text>Tour Time</Typography.Text>
-              <TimePicker style={{ width: '100%' }} value={time} onChange={setTime} format="HH:mm" minuteStep={5} />
-            </div>
-
-            <div>
-              <Typography.Text>Quantity</Typography.Text>
-              <InputNumber style={{ width: '100%' }} min={1} value={quantity} onChange={(v) => setQuantity(v ?? 1)} />
+              <Typography.Text>Seats</Typography.Text>
+              <InputNumber
+                style={{ width: '100%' }}
+                min={1}
+                max={product.seatCapacity}
+                value={quantity}
+                onChange={(v) => setQuantity(v ?? 1)}
+              />
+              <div>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  This tour seats up to {product.seatCapacity}. The tour price does not change with seat count.
+                </Typography.Text>
+              </div>
             </div>
 
             <Button
@@ -182,6 +203,15 @@ export default function TourDetail() {
               Reserve Now
             </Button>
           </Space>
+
+          {date && (
+            <TourWeatherForecast
+              latitude={product.latitude ?? DEFAULT_TOKYO_COORDINATES.latitude}
+              longitude={product.longitude ?? DEFAULT_TOKYO_COORDINATES.longitude}
+              locationLabel={product.latitude ? product.name : 'Tokyo'}
+              date={date.format('YYYY-MM-DD')}
+            />
+          )}
 
           <div style={{ marginTop: 16 }}>
             <Link to="/tours">
@@ -210,7 +240,7 @@ export default function TourDetail() {
               <br />
               Tour Time: {formatTourTime(confirmation.time)}
               <br />
-              Quantity: {confirmation.quantity}
+              Seats: {confirmation.quantity}
             </Typography.Paragraph>
           )}
           <Space style={{ marginTop: 16 }}>

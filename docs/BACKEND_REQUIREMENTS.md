@@ -70,6 +70,24 @@ Ports `authService`/`adminAuthService` (`src/services/mock/{auth,adminAuth}Servi
   separate admin session/cookie from the customer one (original PHP kept these as distinct
   sessions — `admin_logged_in` vs `user_id`).
 
+### Story: Google Sign-In verification
+- Frontend scaffolding exists (`AuthContext.loginWithGoogle`, "Continue with Google" button on
+  `pages/Login`, gated behind `VITE_GOOGLE_CLIENT_ID`) but only forwards the raw Google ID token —
+  `src/services/mock/authService.ts::loginWithGoogle` decodes it client-side *without verification*
+  purely to demo the UI, and has a `TODO(backend)` comment marking this.
+- `POST /auth/google` — body `{ idToken }`. Must verify the token's signature, audience (matches
+  the configured client ID), and expiry server-side (e.g. `google-auth-library`'s
+  `verifyIdToken`), then find-or-create a `User` by the verified email and set the session cookie
+  like a normal login. **Never trust a client-decoded JWT's claims.**
+
+### Story: reCAPTCHA verification on login
+- Frontend scaffolding exists (Google reCAPTCHA v2 checkbox on `pages/Login`, gated behind
+  `VITE_RECAPTCHA_SITE_KEY`) but only obtains a client token — nothing verifies it today.
+- `POST /auth/login` (and any other CAPTCHA-protected endpoint) should accept an optional
+  `recaptchaToken` and verify it against Google's `siteverify` endpoint using a **secret** key that
+  lives only on the backend (never in a `VITE_*` frontend env var) before proceeding with
+  authentication.
+
 ## Epic 2 — Tours (products)
 
 Ports `productService` (`src/services/mock/productService.ts`, `src/types/product.ts`,
@@ -101,7 +119,10 @@ Ports `productService` (`src/services/mock/productService.ts`, `src/types/produc
   - `stock` is a 3-state manual flag, not inventory: `0` = Under Maintenance, `2` = Unavailable,
     else Available.
   - Same-day bookings close after **17:00 Japan Standard Time** — compute "today" and "now" in
-    `Asia/Tokyo`, not server-local time or UTC.
+    `Asia/Tokyo`, not server-local time or UTC. Reference implementation:
+    `src/utils/dateTime.ts::isBookingAllowed` (frontend-only today — this is exactly the check
+    that must be re-implemented server-side, since the frontend's `disabledDate` calendar guard
+    can be bypassed by a direct API call).
   - A date already booked for that tour (existing non-cancelled order containing that
     `productId`+`date`) is unavailable.
 - **This is the most important story to get exactly right** — it's the one rule everything else
@@ -109,7 +130,12 @@ Ports `productService` (`src/services/mock/productService.ts`, `src/types/produc
 
 ### Story: Admin create / update / delete tour
 - `POST /tours`, `PUT /tours/:id`, `DELETE /tours/:id` — admin-only.
-- `Product` fields: `name, category, description, price, discount, stock, image1, image2, image3`.
+- `Product` fields: `name, category, description, price, discount, stock, image1, image2, image3,
+  seatCapacity`, plus optional `latitude, longitude` (powers the weather forecast — see Epic 7's
+  schema story; the tour itinerary map is a fixed route shared by all tours, not per-tour data).
+- `seatCapacity` is `1 | 4`, admin-set, and caps the customer's seat selector on `TourDetail`/`Cart`.
+  **The tour price is flat per booking and must not be multiplied by seat count** — see the pricing
+  note under Epic 3's cart story.
 - Image fields today are filenames resolved against `IMAGE_BASE_PATH` — see Epic 6 for real upload
   handling.
 
@@ -122,8 +148,12 @@ cart-ownership decision above.
 ### Story: Cart read / add / update / remove
 - Mirrors `getCart()`, `addToCart()`, `updateCartItem()`, `removeCartItem()`, `clearCart()`.
 - `addToCart`/`updateCartItem` must re-run the availability check server-side (409 with the
-  availability's `message` if not bookable) and reject a duplicate line for the same
-  tour+date+time (409).
+  availability's `message` if not bookable), reject `quantity > product.seatCapacity` (400), and
+  reject a duplicate line for the same tour+date+time (409).
+- **Pricing: `CartItem.subtotal` = `price` (the tour's effective price), never `price * quantity`.**
+  `quantity`/`seatCapacity` are headcount only — the tour is priced per booking, not per seat.
+  Order totals (`Order.totalAmount`, every receipt/order-history view) sum `item.price` per line,
+  not `item.price * item.quantity`.
 
 ### Story: Checkout / create order
 - `POST /orders` — re-validates **every** cart line's availability again immediately before
@@ -190,7 +220,7 @@ Minimum tables implied by `src/types/*.ts` + `src/services/mock/db.ts`'s seed sh
 - `users` (customers): id, full_name, email (unique), password_hash, created_at.
 - `admin_users`: username (unique), password_hash.
 - `products` (tours): id, name, category, description, price, discount, stock (0/1/2 flag),
-  image1, image2, image3.
+  image1, image2, image3, seat_capacity (1 or 4), latitude (nullable), longitude (nullable).
 - `orders`: id, user_id (nullable — guest checkout?), customer_name, email, address,
   payment_method, total_amount, order_date, status, payment_proof_name, card_name,
   card_number_last4.
@@ -207,7 +237,7 @@ attempts — none of this exists in the mock since it has nothing real to protec
 ### Story: CORS & environment wiring
 Configure the API to accept the frontend's origin with credentials, matching `VITE_API_URL` /
 `VITE_USE_MOCKS` in `src/services/config.ts`. Coordinate the deployed API URL with whoever manages
-`.env` for each environment (see [WORKFLOW.md](WORKFLOW.md) for `development`/`main` environments).
+`.env` for each environment (see [WORKFLOW.md](WORKFLOW.md) for `dev`/`main` environments).
 
 ## Cutover checklist (once the API above exists)
 

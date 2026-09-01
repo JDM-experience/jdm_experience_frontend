@@ -70,6 +70,7 @@ under `AdminLayout` (`AdminNavbar` + `<Outlet/>` + Footer), guarded by `AdminPro
 | `/` | `pages/Home` | — | `index.php` |
 | `/tours` | `pages/Tours` | — | `shop.php` |
 | `/tours/:id` | `pages/TourDetail` | — | `product.php` + `check_availability.php` + `add_to_cart.php` |
+| `/weather` | `pages/Weather` | — | *(no PHP equivalent — new Open-Meteo integration)* |
 | `/cart` | `pages/Cart` | — | `cart.php` + `update_cart.php` |
 | `/checkout` | `pages/Checkout` | customer | `checkout.php` |
 | `/thank-you/:orderId` | `pages/ThankYou` | — | `thankyou.php` |
@@ -156,7 +157,7 @@ needs to satisfy.
 
 | Type (`src/types/`) | Origin | Notes |
 |---|---|---|
-| `Product` | `products` table | `stock` is a manual flag, not inventory: `0` = Under Maintenance, `2` = Unavailable, else Available |
+| `Product` | `products` table | `stock` is a manual flag, not inventory: `0` = Under Maintenance, `2` = Unavailable, else Available. Optional `latitude`/`longitude` power the weather forecast (the tour itinerary map is a fixed route shared by all tours, not per-tour). `seatCapacity` (`1 \| 4`, admin-set) caps the customer's seat selector — the tour price is flat per booking and does not scale with seat count |
 | `User` | `users` table | mock password lives only in `mock/db.ts`'s `MockUserRecord`, never on the public `User` type |
 | `AdminUser` | `admin_users` table | single seeded admin, mock-only auth |
 | `CartItem` | `$_SESSION['cart']`, normalized | `index` = position in the raw session-cart array |
@@ -171,14 +172,36 @@ stay trivially testable:
 
 - `manualStatusFromStock(stock)` — the 0/1/2 → status mapping above.
 - `effectivePrice(price, discount)` — `discount > 0 ? price - price*discount/100 : price`.
-- `isBookingClosedForDate(date)` — true if `date` is *today in Asia/Tokyo* and the current JST
-  time is past 17:00. Computed via `Intl.DateTimeFormat(..., { timeZone: 'Asia/Tokyo' })` rather
-  than a timezone library.
 - `getAvailabilityForDate(stock, date, alreadyBookedForDate)` — the full decision tree: manual
   status wins first, then "no date chosen yet", then the JST cutoff, then the booked-date check.
   Callers (`mock/productService.ts`, `mock/cartService.ts`) compute `alreadyBookedForDate` by
   scanning `db.orders` (mirrors `car_has_booking_for_date()`'s SQL join) and pass it in.
 - `formatTourDate` / `formatTourTime` — display formatting via `dayjs`.
+
+The JST same-day cutoff logic itself now lives in `src/utils/dateTime.ts` (re-exported by
+`bookingUtils.ts` so existing imports are unaffected):
+
+- `isBookingClosedForDate(date)` — true if `date` is *today in Asia/Tokyo* and the current JST
+  time is past 17:00 (`BOOKING_CUTOFF_HOUR_JST`). Computed via
+  `Intl.DateTimeFormat(..., { timeZone: 'Asia/Tokyo' })` rather than a timezone library or
+  `new Date().getHours()`, so it's correct regardless of the visitor's or server's local timezone.
+- `isBookingAllowed(date)` — the public, positive-phrased entry point (`isValidDateString(date) &&
+  !isBookingClosedForDate(date)`), used by `TourDetail`'s `DatePicker.disabledDate`.
+
+Customers only pick a date, never a time (`TourDetail`, and the "Tour Time" column in `Cart`, are
+both read-only/no-picker) — a fixed `DEFAULT_BOOKING_TIME` (`src/constants/index.ts`) fills the
+`time` field that's still threaded through `CartItem`/`OrderItem` for display purposes. **This is
+frontend-only enforcement** — the future Node backend must re-implement the same JST cutoff
+check server-side and must never trust a client-supplied booking date.
+
+**Seats and pricing:** each `Product.seatCapacity` (`1 | 4`, admin-set on the tour form) caps the
+"Seats" selector on `TourDetail` and `Cart` (`min=1 max={seatCapacity}`). The tour price is flat
+per booking — `mock/cartService.ts::getCart()` sets `CartItem.subtotal = price` (not
+`price * quantity`), and every order/receipt page (`Receipt`, `ThankYou`, `MyOrders`,
+`admin/Orders`, `admin/OrderReceipt`) displays/sums `item.price` alone, never `item.price *
+item.quantity`. `quantity`/`seatCapacity` exist purely as headcount info, not a price multiplier.
+`mock/cartService.ts::addToCart`/`updateCartItem` reject `quantity > product.seatCapacity`
+server-side (mock-side) as defense in depth beyond the `InputNumber`'s `max`.
 
 ## 8. Mock database (`src/services/mock/db.ts`)
 
@@ -206,6 +229,9 @@ console during manual testing — `resetDb()` wipes back to the seed state).
 | `ProductImage` | `<img>` that prefixes `IMAGE_BASE_PATH` onto a stored filename |
 | `EmptyState` | AntD `Empty` + optional call-to-action button/link |
 | `PageSpinner` | Centered `Spin` for full-page loading states |
+| `TourWeatherForecast` | Single-day Open-Meteo forecast for a tour's coordinates + selected date, on `TourDetail` |
+| `CurrencyConverter` | Estimated JPY→selected-currency conversion via Frankfurter.app, on `TourDetail` |
+| `TourItineraryMap` | Leaflet map showing the fixed 6-stop `TOUR_ITINERARY` route (English/Latin-script CARTO tiles) — identical on every `TourDetail` page, not per-tour |
 
 `components/layout` holds `Navbar` (search AutoComplete, cart badge, auth dropdown, responsive
 Drawer), `Footer`, and `AdminNavbar` (persistent admin nav — a deliberate improvement over the PHP
@@ -217,8 +243,17 @@ When the Node.js API is ready:
 
 1. Implement each facade's functions (§5) against real endpoints, using `src/services/httpClient.ts`.
 2. Keep the same return shapes as the current mock functions (the `types/` already describe them).
-3. Move password verification, order-availability re-validation, and admin auth server-side for
-   real — the mock versions intentionally trust the browser since there's nothing else to trust.
-4. Delete `src/services/mock/**` and `src/services/config.ts`'s `USE_MOCKS` flag once the mock path
+3. Move password verification, order-availability re-validation, admin auth, and the JST booking
+   cutoff (`isBookingAllowed` in `src/utils/dateTime.ts`) server-side for real — the mock versions
+   intentionally trust the browser since there's nothing else to trust.
+4. Verify the Google ID token (`AuthContext.loginWithGoogle`) and reCAPTCHA token (Login page)
+   server-side — signature/audience/expiry for Google, `siteverify` for reCAPTCHA. The frontend
+   only forwards raw tokens today; `mock/authService.ts::loginWithGoogle` has a `TODO(backend)`
+   comment marking this.
+5. Delete `src/services/mock/**` and `src/services/config.ts`'s `USE_MOCKS` flag once the mock path
    is no longer needed.
-5. Nothing in `src/pages`, `src/components`, or `src/contexts` should need to change.
+6. Nothing in `src/pages`, `src/components`, or `src/contexts` should need to change.
+
+`src/services/weatherService.ts` and `src/services/currencyService.ts` call Open-Meteo and
+Frankfurter.app directly (free, public, third-party APIs, not the future Node backend) and are not
+part of this mock→real swap.

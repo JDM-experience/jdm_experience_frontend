@@ -9,12 +9,14 @@ import Register from '@/pages/Register';
 import About from '@/pages/About';
 import Contact from '@/pages/Contact';
 import Policy from '@/pages/Policy';
+import Weather from '@/pages/Weather';
 
 /** Routes nested under `MainLayout` that need no authentication. */
 export const publicRoutes: AppRoute[] = [
   { index: true, element: <Home /> },
   { path: 'tours', element: <Tours /> },
   { path: 'tours/:id', element: <TourDetail /> },
+  { path: 'weather', element: <Weather /> },
   { path: 'cart', element: <Cart /> },
   { path: 'thank-you/:orderId', element: <ThankYou /> },
   { path: 'login', element: <Login /> },

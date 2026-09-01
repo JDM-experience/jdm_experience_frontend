@@ -70,6 +70,7 @@ export async function createOrder(userId: number | null, input: CreateOrderInput
       time: item.time,
       quantity: item.quantity,
       price: item.price,
+      guideId: db.products.find((p) => p.id === item.productId)?.guideId ?? null,
     })),
   };
 

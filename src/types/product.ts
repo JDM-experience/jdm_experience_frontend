@@ -17,6 +17,14 @@ export interface Product {
   image1: string;
   image2: string;
   image3: string;
+  /** Optional tour location, used for the weather-forecast integration. */
+  latitude?: number;
+  longitude?: number;
+  /** Admin-set seat capacity. Caps how many seats a customer can select; price is per-tour, not per-seat. */
+  seatCapacity: 1 | 4;
+  /** The Tour Guide who owns this tour (their real backend user id), or `null` if unassigned
+   *  (staff-managed). A guide can only edit/delete tours where this matches their own id. */
+  guideId: number | null;
 }
 
 export type CreateProductInput = Omit<Product, 'id'>;

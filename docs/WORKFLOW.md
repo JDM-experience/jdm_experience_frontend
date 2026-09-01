@@ -8,7 +8,7 @@ for the Jira board link and main contact.
 | Branch | Environment |
 |---|---|
 | `main` | Production |
-| `development` | Development |
+| `dev` | Development |
 
 ## Branch naming
 
@@ -24,6 +24,6 @@ e.g. `JEA-42-add-docx-export`.
 ## Flow
 
 1. Pick a ticket from the JEA board.
-2. Cut a branch off `development`, named per the convention above.
-3. Open the PR back into `development`.
-4. `development` gets merged into `main` for a production release.
+2. Cut a branch off `dev`, named per the convention above.
+3. Open the PR back into `dev`.
+4. `dev` gets merged into `main` for a production release.

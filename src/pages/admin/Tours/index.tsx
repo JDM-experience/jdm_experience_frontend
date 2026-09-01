@@ -20,10 +20,13 @@ import { PageSpinner } from '@/components/common/PageSpinner';
 import { AvailabilityBadge } from '@/components/common/AvailabilityBadge';
 import { ProductImage } from '@/components/common/ProductImage';
 import { PriceDisplay } from '@/components/common/PriceDisplay';
+import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { createProduct, deleteProduct, getProducts, updateProduct } from '@/services/productService';
+import { listUsers } from '@/services/adminUserService';
 import { manualStatusFromStock } from '@/utils/bookingUtils';
 import { getErrorMessage } from '@/utils/errors';
 import type { Product } from '@/types/product';
+import type { ManagedUser } from '@/types/managedUser';
 
 interface TourFormValues {
   name: string;
@@ -32,12 +35,21 @@ interface TourFormValues {
   price: number;
   discount: number;
   availabilityStatus: 0 | 1 | 2;
+  latitude?: number;
+  longitude?: number;
+  seatCapacity: 1 | 4;
+  guideId?: number;
 }
 
 const AVAILABILITY_OPTIONS = [
   { value: 1, label: 'Available' },
   { value: 2, label: 'Unavailable' },
   { value: 0, label: 'Under Maintenance' },
+];
+
+const SEAT_CAPACITY_OPTIONS = [
+  { value: 4, label: '4 Seats' },
+  { value: 1, label: '1 Seat' },
 ];
 
 interface ImageFiles {
@@ -47,7 +59,12 @@ interface ImageFiles {
 }
 
 export default function AdminTours() {
+  const { admin } = useAdminAuth();
+  const isGuide = admin?.role === 'TOUR_GUIDE';
+  const isStaff = admin?.role === 'SUPER_ADMIN' || admin?.role === 'ADMIN';
+
   const [tours, setTours] = useState<Product[]>([]);
+  const [guides, setGuides] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [form] = Form.useForm<TourFormValues>();
   const [modalOpen, setModalOpen] = useState(false);
@@ -63,6 +80,17 @@ export default function AdminTours() {
   }
 
   useEffect(fetchTours, []);
+
+  // Only staff get a guide-picker in the form — a Tour Guide is always auto-assigned to their
+  // own tours, so they never need to see or choose from this list.
+  useEffect(() => {
+    if (!isStaff) return;
+    listUsers()
+      .then((users) => setGuides(users.filter((u) => u.role === 'TOUR_GUIDE')))
+      .catch(() => setGuides([]));
+  }, [isStaff]);
+
+  const visibleTours = isGuide ? tours.filter((tour) => tour.guideId === admin?.id) : tours;
 
   function openAddModal() {
     setEditingTour(null);
@@ -81,6 +109,10 @@ export default function AdminTours() {
       price: tour.price,
       discount: tour.discount,
       availabilityStatus: tour.stock === 0 ? 0 : tour.stock === 2 ? 2 : 1,
+      latitude: tour.latitude,
+      longitude: tour.longitude,
+      seatCapacity: tour.seatCapacity,
+      guideId: tour.guideId ?? undefined,
     });
     setModalOpen(true);
   }
@@ -111,6 +143,10 @@ export default function AdminTours() {
       const image3 = imageFiles.image3 ? URL.createObjectURL(imageFiles.image3) : (editingTour?.image3 ?? '');
 
       const stock = values.availabilityStatus;
+      // A Tour Guide is always auto-assigned to their own tours — never trust a hidden/client
+      // field for this, since guides don't even see the guide-picker. Staff use whatever the
+      // picker resolved to (or leave a tour unassigned).
+      const guideId = isGuide ? (admin?.id ?? null) : (values.guideId ?? null);
 
       if (editingTour) {
         await updateProduct({
@@ -124,6 +160,10 @@ export default function AdminTours() {
           image1,
           image2,
           image3,
+          latitude: values.latitude,
+          longitude: values.longitude,
+          seatCapacity: values.seatCapacity,
+          guideId,
         });
         message.success('Tour updated successfully.');
       } else {
@@ -137,6 +177,10 @@ export default function AdminTours() {
           image1,
           image2,
           image3,
+          latitude: values.latitude,
+          longitude: values.longitude,
+          seatCapacity: values.seatCapacity,
+          guideId,
         });
         message.success('Tour added successfully.');
       }
@@ -189,14 +233,20 @@ export default function AdminTours() {
     {
       title: 'Actions',
       key: 'actions',
-      render: (_, tour) => (
-        <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(tour)} />
-          <Popconfirm title={`Delete ${tour.name} from the fleet?`} onConfirm={() => handleDelete(tour.id)}>
-            <Button size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
+      render: (_, tour) => {
+        const canEdit = isStaff || (isGuide && tour.guideId === admin?.id);
+        const canDelete = admin?.role === 'SUPER_ADMIN' || (isGuide && tour.guideId === admin?.id);
+        return (
+          <Space>
+            {canEdit && <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(tour)} />}
+            {canDelete && (
+              <Popconfirm title={`Delete ${tour.name} from the fleet?`} onConfirm={() => handleDelete(tour.id)}>
+                <Button size="small" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            )}
+          </Space>
+        );
+      },
     },
   ];
 
@@ -213,7 +263,7 @@ export default function AdminTours() {
         </Button>
       </div>
 
-      <Table columns={columns} dataSource={tours} rowKey="id" scroll={{ x: true }} />
+      <Table columns={columns} dataSource={visibleTours} rowKey="id" scroll={{ x: true }} />
 
       <Modal
         title={editingTour ? 'Edit Tour' : 'Add New Tour'}
@@ -249,6 +299,39 @@ export default function AdminTours() {
           >
             <Select options={AVAILABILITY_OPTIONS} />
           </Form.Item>
+          <Form.Item
+            label="Seat Capacity"
+            name="seatCapacity"
+            initialValue={4}
+            rules={[{ required: true, message: 'Select a seat capacity.' }]}
+            extra="Caps how many seats a customer can select when booking. The tour price is flat per booking and does not change with seat count."
+          >
+            <Select options={SEAT_CAPACITY_OPTIONS} />
+          </Form.Item>
+          {isStaff && (
+            <Form.Item
+              label="Assign Guide"
+              name="guideId"
+              extra="Leave blank to keep this tour staff-managed (unassigned)."
+            >
+              <Select
+                allowClear
+                placeholder="Unassigned"
+                options={guides.map((g) => ({ value: g.id, label: g.fullName ?? g.email }))}
+              />
+            </Form.Item>
+          )}
+          <div style={{ display: 'flex', gap: 16 }}>
+            <Form.Item label="Latitude" name="latitude" style={{ flex: 1 }}>
+              <InputNumber style={{ width: '100%' }} step={0.000001} placeholder="e.g. 35.658600" />
+            </Form.Item>
+            <Form.Item label="Longitude" name="longitude" style={{ flex: 1 }}>
+              <InputNumber style={{ width: '100%' }} step={0.000001} placeholder="e.g. 139.745400" />
+            </Form.Item>
+          </div>
+          <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginTop: -16, marginBottom: 16 }}>
+            Optional. Powers the weather forecast on the tour detail page.
+          </Typography.Paragraph>
           <Form.Item label="Tour Images" required={!editingTour}>
             <Space orientation="vertical">
               <Upload {...makeUploadProps('image1')}>

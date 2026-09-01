@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { Button, DatePicker, InputNumber, Modal, Popconfirm, Space, Table, TimePicker, Typography, message } from 'antd';
+import { Button, DatePicker, InputNumber, Modal, Popconfirm, Space, Table, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { DeleteOutlined } from '@ant-design/icons';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -89,20 +89,18 @@ export default function Cart() {
     {
       title: 'Tour Time',
       dataIndex: 'time',
-      render: (time: string, item) => (
-        <TimePicker
-          value={dayjs(`2000-01-01T${time}`)}
-          format="HH:mm"
-          minuteStep={5}
-          onChange={(value) => value && handleFieldChange(item, { time: value.format('HH:mm') })}
-        />
-      ),
+      render: (time: string) => <Typography.Text>{formatTourTime(time)}</Typography.Text>,
     },
     {
-      title: 'Quantity',
+      title: 'Seats',
       dataIndex: 'quantity',
       render: (quantity: number, item) => (
-        <InputNumber min={1} value={quantity} onChange={(value) => value && handleFieldChange(item, { quantity: value })} />
+        <InputNumber
+          min={1}
+          max={item.seatCapacity}
+          value={quantity}
+          onChange={(value) => value && handleFieldChange(item, { quantity: value })}
+        />
       ),
     },
     {
@@ -184,7 +182,7 @@ export default function Cart() {
                 </Typography.Text>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div>Quantity: {item.quantity}</div>
+                <div>Seats: {item.quantity}</div>
                 <Typography.Text strong>{formatCurrency(item.subtotal)}</Typography.Text>
               </div>
             </div>

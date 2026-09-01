@@ -55,7 +55,7 @@ export default function Receipt() {
     { title: 'Tour Time', dataIndex: 'time', render: formatTourTime },
     { title: 'Qty', dataIndex: 'quantity' },
     { title: 'Tour Price', dataIndex: 'price', render: (price: number) => formatCurrency(price) },
-    { title: 'Total Price', key: 'subtotal', render: (_, item) => formatCurrency(item.price * item.quantity) },
+    { title: 'Total Price', key: 'subtotal', render: (_, item) => formatCurrency(item.price) },
   ];
 
   return (

@@ -108,7 +108,7 @@ export function Navbar() {
             value={searchTerm}
             onChange={setSearchTerm}
             onSelect={(value) => goToSearch(value)}
-            style={{ width: 220 }}
+            style={{ width: screens.lg ? 220 : 160 }}
             popupMatchSelectWidth={320}
           >
             <Input.Search

@@ -6,6 +6,7 @@ import { DeleteOutlined, FileTextOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ProductImage } from '@/components/common/ProductImage';
+import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { deleteOrder, getAllOrders, updateOrderStatus } from '@/services/orderService';
 import { formatCurrency, formatDateTime } from '@/utils/formatters';
 import { formatTourDate, formatTourTime } from '@/utils/bookingUtils';
@@ -32,10 +33,14 @@ const itemColumns: ColumnsType<OrderItem> = [
   { title: 'Tour Time', dataIndex: 'time', render: formatTourTime },
   { title: 'Quantity', dataIndex: 'quantity' },
   { title: 'Tour Price', dataIndex: 'price', render: (price: number) => formatCurrency(price) },
-  { title: 'Total Price', key: 'subtotal', render: (_, item) => formatCurrency(item.price * item.quantity) },
+  { title: 'Total Price', key: 'subtotal', render: (_, item) => formatCurrency(item.price) },
 ];
 
 export default function AdminOrders() {
+  const { admin } = useAdminAuth();
+  const isGuide = admin?.role === 'TOUR_GUIDE';
+  const isStaff = admin?.role === 'SUPER_ADMIN' || admin?.role === 'ADMIN';
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -47,6 +52,11 @@ export default function AdminOrders() {
   }
 
   useEffect(fetchOrders, []);
+
+  // A Tour Guide only sees/manages reservations that include at least one of their own tours.
+  const visibleOrders = isGuide
+    ? orders.filter((order) => order.items.some((item) => item.guideId === admin?.id))
+    : orders;
 
   async function handleStatusChange(orderId: number, status: OrderStatus) {
     try {
@@ -76,11 +86,11 @@ export default function AdminOrders() {
         Reservations Management
       </Typography.Title>
 
-      {orders.length === 0 ? (
+      {visibleOrders.length === 0 ? (
         <EmptyState title="No orders found." />
       ) : (
-        orders.map((order) => {
-          const computedTotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        visibleOrders.map((order) => {
+          const computedTotal = order.items.reduce((sum, item) => sum + item.price, 0);
           const savings = computedTotal - order.totalAmount;
 
           return (
@@ -138,11 +148,13 @@ export default function AdminOrders() {
                   <Link to={`/admin/receipt/${order.id}`}>
                     <Button icon={<FileTextOutlined />}>View Receipt</Button>
                   </Link>
-                  <Popconfirm title={`Delete Reservation #${order.id}?`} onConfirm={() => handleDelete(order.id)}>
-                    <Button danger icon={<DeleteOutlined />}>
-                      Delete
-                    </Button>
-                  </Popconfirm>
+                  {isStaff && (
+                    <Popconfirm title={`Delete Reservation #${order.id}?`} onConfirm={() => handleDelete(order.id)}>
+                      <Button danger icon={<DeleteOutlined />}>
+                        Delete
+                      </Button>
+                    </Popconfirm>
+                  )}
                 </Space>
               </div>
             </Card>

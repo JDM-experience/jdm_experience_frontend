@@ -14,8 +14,10 @@ export interface CartItem {
   discount: number;
   /** Price after discount is applied */
   price: number;
+  /** Equal to `price` — the tour price is flat per booking and not multiplied by `quantity`. */
   subtotal: number;
   stock: number;
+  seatCapacity: 1 | 4;
 }
 
 export interface AddToCartInput {

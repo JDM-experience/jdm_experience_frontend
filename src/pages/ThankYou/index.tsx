@@ -33,7 +33,7 @@ export default function ThankYou() {
     );
   }
 
-  const computedTotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const computedTotal = order.items.reduce((sum, item) => sum + item.price, 0);
   const savings = computedTotal - order.totalAmount;
 
   const columns: ColumnsType<OrderItem> = [
@@ -45,7 +45,7 @@ export default function ThankYou() {
     {
       title: 'Total Price',
       key: 'subtotal',
-      render: (_, item) => formatCurrency(item.price * item.quantity),
+      render: (_, item) => formatCurrency(item.price),
     },
   ];
 

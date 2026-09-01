@@ -3,6 +3,7 @@ import { Button, Card, Form, Input, Modal, Popconfirm, Space, Typography, messag
 import { DeleteOutlined, MailOutlined, MessageOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
+import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { deleteMessage, getMessages, replyToMessage } from '@/services/messageService';
 import { formatDateTime } from '@/utils/formatters';
 import { getErrorMessage } from '@/utils/errors';
@@ -14,6 +15,9 @@ interface ReplyFormValues {
 }
 
 export default function AdminMessages() {
+  const { admin } = useAdminAuth();
+  const isStaff = admin?.role === 'SUPER_ADMIN' || admin?.role === 'ADMIN';
+
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [replyTarget, setReplyTarget] = useState<ContactMessage | null>(null);
@@ -86,11 +90,13 @@ export default function AdminMessages() {
                 <Button icon={<MessageOutlined />} onClick={() => setReplyTarget(msg)}>
                   Reply
                 </Button>
-                <Popconfirm title="Delete this message?" onConfirm={() => handleDelete(msg.id)}>
-                  <Button danger icon={<DeleteOutlined />}>
-                    Delete
-                  </Button>
-                </Popconfirm>
+                {isStaff && (
+                  <Popconfirm title="Delete this message?" onConfirm={() => handleDelete(msg.id)}>
+                    <Button danger icon={<DeleteOutlined />}>
+                      Delete
+                    </Button>
+                  </Popconfirm>
+                )}
               </Space>
             </div>
           </Card>
