@@ -3,7 +3,7 @@ import { Layout, Menu, Space, Typography } from 'antd';
 import { LogoutOutlined } from '@ant-design/icons';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 
-const NAV_LINKS = [
+const BASE_NAV_LINKS = [
   { key: '/admin/dashboard', label: 'Dashboard' },
   { key: '/admin/tours', label: 'Tours' },
   { key: '/admin/orders', label: 'Reservations' },
@@ -16,7 +16,15 @@ export function AdminNavbar() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const selectedKey = NAV_LINKS.find((link) => location.pathname.startsWith(link.key))?.key;
+  const navLinks = [
+    ...BASE_NAV_LINKS,
+    ...(admin?.role === 'SUPER_ADMIN' || admin?.role === 'ADMIN' ? [{ key: '/admin/users', label: 'Users' }] : []),
+    ...(admin?.role === 'SUPER_ADMIN' || admin?.role === 'ADMIN'
+      ? [{ key: '/admin/settings', label: 'Website Settings' }]
+      : []),
+  ];
+
+  const selectedKey = navLinks.find((link) => location.pathname.startsWith(link.key))?.key;
 
   return (
     <Layout.Header
@@ -37,12 +45,12 @@ export function AdminNavbar() {
         theme="dark"
         mode="horizontal"
         selectedKeys={selectedKey ? [selectedKey] : []}
-        items={NAV_LINKS.map((link) => ({ key: link.key, label: <Link to={link.key}>{link.label}</Link> }))}
+        items={navLinks.map((link) => ({ key: link.key, label: <Link to={link.key}>{link.label}</Link> }))}
         style={{ flex: 1, minWidth: 0, background: 'transparent' }}
       />
 
       <Space>
-        <Typography.Text style={{ color: '#fff' }}>Welcome, {admin?.username}</Typography.Text>
+        <Typography.Text style={{ color: '#fff' }}>Welcome, {admin?.username ?? admin?.fullName ?? admin?.email}</Typography.Text>
         <LogoutOutlined
           style={{ color: '#fff', cursor: 'pointer', fontSize: 16 }}
           onClick={() => {
