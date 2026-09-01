@@ -26,6 +26,7 @@ import {
   addTourImage,
   archiveTour,
   createTour,
+  listTourGuides,
   listTours,
   removeTourAvailability,
   removeTourImage,
@@ -34,7 +35,7 @@ import {
 import { ALLOWED_IMAGE_TYPES, uploadTourImage } from '@/services/uploadService';
 import { getErrorMessage } from '@/utils/errors';
 import { formatCurrency, formatDateTime, slugify } from '@/utils/formatters';
-import type { Tour, TourStatus, UpdateTourInput } from '@/types/tour';
+import type { Tour, TourGuide, TourStatus, UpdateTourInput } from '@/types/tour';
 
 interface TourFormValues {
   name: string;
@@ -44,6 +45,7 @@ interface TourFormValues {
   currency: string;
   status: TourStatus;
   seats: number;
+  guideId?: number;
 }
 
 const TOUR_STATUS_OPTIONS: { value: TourStatus; label: string }[] = [
@@ -155,6 +157,7 @@ function TourImagesEditor({ tour, onChange }: { tour: Tour; onChange: () => void
 export default function AdminTours() {
   const [tours, setTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(true);
+  const [guides, setGuides] = useState<TourGuide[]>([]);
 
   const [createForm] = Form.useForm<TourFormValues>();
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -185,6 +188,13 @@ export default function AdminTours() {
   }
 
   useEffect(fetchTours, []);
+  useEffect(() => {
+    listTourGuides()
+      .then(setGuides)
+      .catch((error) => message.error(getErrorMessage(error, 'Unable to load tour guides.')));
+  }, []);
+
+  const GUIDE_OPTIONS = guides.map((g) => ({ value: g.id, label: g.fullName ?? g.email ?? `Guide #${g.id}` }));
 
   async function refreshTour(id: number) {
     const results = await listTours();
@@ -238,6 +248,7 @@ export default function AdminTours() {
         currency: values.currency,
         status: values.status,
         seats: values.seats,
+        guideId: values.guideId,
         images: newTourImages.length
           ? newTourImages.map((imageUrl, sortOrder) => ({ imageUrl, sortOrder }))
           : undefined,
@@ -263,6 +274,7 @@ export default function AdminTours() {
       currency: tour.currency,
       status: tour.status,
       seats: tour.seats,
+      guideId: tour.guide?.id,
     });
     setEditModalOpen(true);
   }
@@ -279,6 +291,7 @@ export default function AdminTours() {
         currency: values.currency,
         status: values.status,
         seats: values.seats,
+        guideId: values.guideId ?? null,
       };
       await updateTour(editingTour.id, input);
       message.success('Tour updated successfully.');
@@ -476,6 +489,14 @@ export default function AdminTours() {
           <Form.Item label="Seats" name="seats" rules={[{ required: true, message: 'Seats is required.' }]}>
             <InputNumber style={{ width: '100%' }} min={1} step={1} placeholder="Number of seats" />
           </Form.Item>
+          <Form.Item label="Tour Guide" name="guideId" extra="Who this tour is assigned to. Leave unset to keep it unassigned.">
+            <Select
+              allowClear
+              placeholder="Unassigned"
+              options={GUIDE_OPTIONS}
+              notFoundContent="No tour guides available"
+            />
+          </Form.Item>
           <Form.Item label="Images" extra="JPEG, PNG, WebP or AVIF, up to 5 MB each.">
             {newTourImages.length > 0 && (
               <Space wrap style={{ marginBottom: 8 }}>
@@ -552,6 +573,14 @@ export default function AdminTours() {
           </Form.Item>
           <Form.Item label="Seats" name="seats" rules={[{ required: true, message: 'Seats is required.' }]}>
             <InputNumber style={{ width: '100%' }} min={1} step={1} placeholder="Number of seats" />
+          </Form.Item>
+          <Form.Item label="Tour Guide" name="guideId" extra="Who this tour is assigned to. Leave unset to keep it unassigned.">
+            <Select
+              allowClear
+              placeholder="Unassigned"
+              options={GUIDE_OPTIONS}
+              notFoundContent="No tour guides available"
+            />
           </Form.Item>
           {editingTour && (
             <Form.Item label="Images">

@@ -8,6 +8,7 @@ import type {
   CreateTourInput,
   Tour,
   TourAvailability,
+  TourGuide,
   TourImage,
   TourStatus,
   UpdateTourInput,
@@ -32,6 +33,12 @@ export async function getTourById(id: number): Promise<Tour | null> {
     if (error instanceof ApiError && error.status === 404) return null;
     throw error;
   }
+}
+
+/** For the Tour Guide assignment selector on the admin Create/Edit Tour forms (staff-only). */
+export async function listTourGuides(): Promise<TourGuide[]> {
+  const res = await httpClient.get<ApiEnvelope<TourGuide[]>>('/tours/guides');
+  return res.data;
 }
 
 export async function createTour(input: CreateTourInput): Promise<Tour> {
