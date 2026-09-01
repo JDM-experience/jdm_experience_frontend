@@ -1,74 +1,58 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import dayjs from 'dayjs';
-import type { Dayjs } from 'dayjs';
-import { Button, Col, DatePicker, Image, InputNumber, Modal, Row, Space, Typography, message } from 'antd';
+import { Button, Col, Image, Input, InputNumber, Modal, Row, Select, Space, Typography, message } from 'antd';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
-import { ProductImage } from '@/components/common/ProductImage';
-import { PriceDisplay } from '@/components/common/PriceDisplay';
-import { AvailabilityBadge } from '@/components/common/AvailabilityBadge';
-import { TourWeatherForecast } from '@/components/common/TourWeatherForecast';
-import { CurrencyConverter } from '@/components/common/CurrencyConverter';
-import { TourItineraryMap } from '@/components/common/TourItineraryMap';
-import { useCart } from '@/contexts/CartContext';
-import { checkAvailability, getProductById } from '@/services/productService';
-import { DEFAULT_TOKYO_COORDINATES } from '@/services/weatherService';
-import { effectivePrice, formatTourDate, formatTourTime, getAvailabilityForDate } from '@/utils/bookingUtils';
-import { isBookingAllowed } from '@/utils/dateTime';
+import { useAuth } from '@/contexts/AuthContext';
+import { getTourById } from '@/services/tourService';
+import { createBooking } from '@/services/bookingService';
+import { formatCurrency } from '@/utils/formatters';
 import { getErrorMessage } from '@/utils/errors';
-import { DEFAULT_BOOKING_TIME, IMAGE_BASE_PATH } from '@/constants';
-import type { AvailabilityResult } from '@/types/availability';
-import type { Product } from '@/types/product';
+import type { Booking } from '@/types/booking';
+import type { Tour, TourAvailability } from '@/types/tour';
+
+const PLACEHOLDER_IMAGE =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><rect width="600" height="400" fill="%23f0f0f0"/></svg>',
+  );
+
+/** The date a JST-based slot falls on, independent of the browser's own timezone --
+ *  the backend itself resolves bookingDate against Asia/Tokyo, so this must match. */
+function jstDateOf(isoDatetime: string): string {
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' });
+  return formatter.format(new Date(isoDatetime));
+}
 
 export default function TourDetail() {
   const { id } = useParams<{ id: string }>();
-  const productId = Number(id);
+  const tourId = Number(id);
   const navigate = useNavigate();
-  const { addItem } = useCart();
+  const { isAuthenticated, login } = useAuth();
 
-  const [product, setProduct] = useState<Product | null>(null);
+  const [tour, setTour] = useState<Tour | null>(null);
   const [loading, setLoading] = useState(true);
-  const [mainImage, setMainImage] = useState('');
+  const [mainImage, setMainImage] = useState<string | null>(null);
 
-  const [date, setDate] = useState<Dayjs | null>(null);
-  const [quantity, setQuantity] = useState(1);
-  const [availability, setAvailability] = useState<AvailabilityResult | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<TourAvailability | null>(null);
+  const [participants, setParticipants] = useState(1);
+  const [specialRequests, setSpecialRequests] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [confirmation, setConfirmation] = useState<{ date: string; time: string; quantity: number } | null>(null);
+  const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    getProductById(productId)
-      .then((p) => {
-        setProduct(p);
-        if (p) setMainImage(p.image1);
+    getTourById(tourId)
+      .then((result) => {
+        setTour(result);
+        setMainImage(result.images[0]?.imageUrl ?? null);
       })
+      .catch((error) => message.error(getErrorMessage(error, 'Unable to load this tour.')))
       .finally(() => setLoading(false));
-  }, [productId]);
-
-  useEffect(() => {
-    if (product) setQuantity((q) => Math.min(q, product.seatCapacity));
-  }, [product]);
-
-  useEffect(() => {
-    if (!product) return;
-    if (!date) {
-      setAvailability(getAvailabilityForDate(product.stock, '', false));
-      return;
-    }
-    const dateStr = date.format('YYYY-MM-DD');
-    let cancelled = false;
-    checkAvailability(product.id, dateStr).then((result) => {
-      if (!cancelled) setAvailability(result);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [date, product]);
+  }, [tourId]);
 
   if (loading) return <PageSpinner />;
-  if (!product) {
+  if (!tour) {
     return (
       <div style={{ padding: '80px 24px' }}>
         <EmptyState title="Tour not found." actionText="Back to Tours" actionTo="/tours" />
@@ -76,33 +60,36 @@ export default function TourDetail() {
     );
   }
 
-  const gallery = [product.image1, product.image2, product.image3].filter(Boolean);
-  const tourPrice = effectivePrice(product.price, product.discount);
+  // A slot in the past is never actually bookable (the backend enforces the same JST cutoff
+  // rule server-side regardless) -- filter it out here too so it's never shown as selectable.
+  const todayJST = jstDateOf(new Date().toISOString());
+  const bookableSlots = tour.availability.filter(
+    (slot) => slot.spotsRemaining > 0 && jstDateOf(slot.startDatetime) >= todayJST,
+  );
 
-  // Frontend-only enforcement of the JST 5PM cutoff — the future Node backend MUST
-  // re-validate an isBookingAllowed()-equivalent check server-side before persisting
-  // a booking; never trust a client-supplied date.
   async function handleReserve() {
-    if (!date) {
-      message.warning('Please select a tour date.');
+    if (!selectedSlot) {
+      message.warning('Please select an available date.');
       return;
     }
-    const dateStr = date.format('YYYY-MM-DD');
+    if (!isAuthenticated) {
+      login({ returnTo: `${window.location.pathname}` });
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await addItem({
-        productId: product!.id,
-        productName: product!.name,
-        price: tourPrice,
-        productImage: product!.image1,
-        date: dateStr,
-        time: DEFAULT_BOOKING_TIME,
-        quantity,
+      const booking = await createBooking({
+        tourId: tour!.id,
+        bookingDate: jstDateOf(selectedSlot.startDatetime),
+        participants,
+        specialRequests: specialRequests.trim() || undefined,
       });
-      setConfirmation({ date: dateStr, time: DEFAULT_BOOKING_TIME, quantity });
+      setConfirmedBooking(booking);
     } catch (error) {
       message.error(getErrorMessage(error, 'Unable to reserve this tour.'));
-      checkAvailability(product!.id, dateStr).then(setAvailability);
+      // The slot's spotsRemaining may be stale (someone else just booked it) -- refetch.
+      getTourById(tourId).then(setTour);
     } finally {
       setSubmitting(false);
     }
@@ -113,105 +100,92 @@ export default function TourDetail() {
       <Row gutter={[40, 32]}>
         <Col xs={24} md={12} style={{ textAlign: 'center' }}>
           <Image
-            src={`${IMAGE_BASE_PATH}${mainImage}`}
-            alt={product.name}
+            src={mainImage ?? PLACEHOLDER_IMAGE}
+            alt={tour.name}
             style={{ width: '100%', maxHeight: 520, objectFit: 'cover', borderRadius: 8 }}
           />
-          <Space style={{ marginTop: 16 }} wrap>
-            {gallery.map((img) => (
-              <ProductImage
-                key={img}
-                fileName={img}
-                alt="Tour gallery"
-                onClick={() => setMainImage(img)}
-                style={{
-                  width: 90,
-                  height: 90,
-                  objectFit: 'cover',
-                  cursor: 'pointer',
-                  borderRadius: 4,
-                  border: img === mainImage ? '2px solid #000' : '1px solid #eee',
-                }}
-              />
-            ))}
-          </Space>
+          {tour.images.length > 1 && (
+            <Space style={{ marginTop: 16 }} wrap>
+              {tour.images.map((img) => (
+                <img
+                  key={img.id}
+                  src={img.imageUrl}
+                  alt="Tour gallery"
+                  onClick={() => setMainImage(img.imageUrl)}
+                  style={{
+                    width: 90,
+                    height: 90,
+                    objectFit: 'cover',
+                    cursor: 'pointer',
+                    borderRadius: 4,
+                    border: img.imageUrl === mainImage ? '2px solid #000' : '1px solid #eee',
+                  }}
+                />
+              ))}
+            </Space>
+          )}
         </Col>
 
         <Col xs={24} md={12}>
-          <Typography.Text type="secondary" style={{ textTransform: 'uppercase' }}>
-            Tour Type: {product.category}
-          </Typography.Text>
+          {tour.guide?.fullName && (
+            <Typography.Text type="secondary" style={{ textTransform: 'uppercase' }}>
+              Guide: {tour.guide.fullName}
+            </Typography.Text>
+          )}
           <Typography.Title level={2} style={{ marginTop: 4 }}>
-            {product.name}
+            {tour.name}
           </Typography.Title>
-          <PriceDisplay price={product.price} discount={product.discount} />
-          <CurrencyConverter amountJPY={tourPrice} />
-          <Typography.Paragraph style={{ marginTop: 16 }}>{product.description}</Typography.Paragraph>
-          <TourItineraryMap />
-
-          <div style={{ marginBottom: 16 }}>
-            <Typography.Text strong>Availability Status: </Typography.Text>
-            {availability && <AvailabilityBadge status={availability.status} />}
-            <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
-              {availability?.message}
-            </Typography.Paragraph>
-          </div>
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            {formatCurrency(tour.price)}
+          </Typography.Title>
+          <Typography.Paragraph style={{ marginTop: 16 }}>{tour.description}</Typography.Paragraph>
 
           <Typography.Title level={5}>Select Tour Details</Typography.Title>
           <Space orientation="vertical" size="middle" style={{ width: '100%', maxWidth: 360 }}>
             <div>
-              <Typography.Text>Tour Date</Typography.Text>
-              <DatePicker
+              <Typography.Text>Available Dates</Typography.Text>
+              <Select
                 style={{ width: '100%' }}
-                value={date}
-                onChange={setDate}
-                disabledDate={(current) =>
-                  Boolean(current && current < dayjs().startOf('day')) ||
-                  !isBookingAllowed(current?.format('YYYY-MM-DD') ?? '')
-                }
+                placeholder={bookableSlots.length === 0 ? 'No dates available' : 'Choose a date'}
+                disabled={bookableSlots.length === 0}
+                value={selectedSlot?.id}
+                onChange={(slotId) => setSelectedSlot(bookableSlots.find((slot) => slot.id === slotId) ?? null)}
+                options={bookableSlots.map((slot) => ({
+                  value: slot.id,
+                  label: `${new Date(slot.startDatetime).toLocaleString('en-US', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                    timeZone: 'Asia/Tokyo',
+                  })} JST — ${slot.spotsRemaining} spots left`,
+                }))}
               />
-              <div>
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  Same-day bookings close after 5:00 PM Japan Standard Time.
-                </Typography.Text>
-              </div>
             </div>
 
             <div>
-              <Typography.Text>Seats</Typography.Text>
+              <Typography.Text>Participants</Typography.Text>
               <InputNumber
                 style={{ width: '100%' }}
                 min={1}
-                max={product.seatCapacity}
-                value={quantity}
-                onChange={(v) => setQuantity(v ?? 1)}
+                max={selectedSlot ? Math.min(selectedSlot.spotsRemaining, tour.capacity) : tour.capacity}
+                value={participants}
+                onChange={(v) => setParticipants(v ?? 1)}
               />
-              <div>
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  This tour seats up to {product.seatCapacity}. The tour price does not change with seat count.
-                </Typography.Text>
-              </div>
             </div>
 
-            <Button
-              type="primary"
-              size="large"
-              disabled={!availability?.bookable}
-              loading={submitting}
-              onClick={handleReserve}
-            >
-              Reserve Now
+            <div>
+              <Typography.Text>Special Requests (optional)</Typography.Text>
+              <Input.TextArea
+                rows={2}
+                value={specialRequests}
+                onChange={(e) => setSpecialRequests(e.target.value)}
+                placeholder="Any special requests..."
+              />
+            </div>
+
+            <Button type="primary" size="large" loading={submitting} onClick={handleReserve}>
+              {isAuthenticated ? 'Reserve Now' : 'Log In to Reserve'}
             </Button>
           </Space>
-
-          {date && (
-            <TourWeatherForecast
-              latitude={product.latitude ?? DEFAULT_TOKYO_COORDINATES.latitude}
-              longitude={product.longitude ?? DEFAULT_TOKYO_COORDINATES.longitude}
-              locationLabel={product.latitude ? product.name : 'Tokyo'}
-              date={date.format('YYYY-MM-DD')}
-            />
-          )}
 
           <div style={{ marginTop: 16 }}>
             <Link to="/tours">
@@ -221,35 +195,31 @@ export default function TourDetail() {
         </Col>
       </Row>
 
-      <Modal
-        open={confirmation !== null}
-        onCancel={() => setConfirmation(null)}
-        footer={null}
-        centered
-      >
-        <div style={{ textAlign: 'center', padding: '16px 0' }}>
-          <ProductImage
-            fileName={product.image1}
-            alt={product.name}
-            style={{ width: 200, height: 140, objectFit: 'cover', borderRadius: 8, marginBottom: 16 }}
-          />
-          <Typography.Title level={5}>{product.name} added for review</Typography.Title>
-          {confirmation && (
+      <Modal open={confirmedBooking !== null} onCancel={() => setConfirmedBooking(null)} footer={null} centered>
+        {confirmedBooking && (
+          <div style={{ textAlign: 'center', padding: '16px 0' }}>
+            <Typography.Title level={5}>Reservation confirmed!</Typography.Title>
             <Typography.Paragraph type="secondary">
-              Tour Date: {formatTourDate(confirmation.date)}
+              Booking Reference: JDM-{confirmedBooking.id}
               <br />
-              Tour Time: {formatTourTime(confirmation.time)}
+              Tour: {confirmedBooking.tourNameSnapshot}
               <br />
-              Seats: {confirmation.quantity}
+              Date: {new Date(confirmedBooking.bookingDate).toLocaleDateString('en-US', { dateStyle: 'long', timeZone: 'UTC' })}
+              <br />
+              Participants: {confirmedBooking.participants}
+              <br />
+              Total: {formatCurrency(confirmedBooking.totalPrice)}
+              <br />
+              Status: {confirmedBooking.status}
             </Typography.Paragraph>
-          )}
-          <Space style={{ marginTop: 16 }}>
-            <Button onClick={() => navigate('/tours')}>Continue Browsing</Button>
-            <Button type="primary" onClick={() => navigate('/cart')}>
-              View Reservations
-            </Button>
-          </Space>
-        </div>
+            <Space style={{ marginTop: 16 }}>
+              <Button onClick={() => navigate('/tours')}>Continue Browsing</Button>
+              <Button type="primary" onClick={() => navigate('/my-bookings')}>
+                View My Reservations
+              </Button>
+            </Space>
+          </div>
+        )}
       </Modal>
     </div>
   );

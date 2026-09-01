@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Button,
   Form,
+  Image,
   Input,
   InputNumber,
   Modal,
@@ -9,53 +10,63 @@ import {
   Select,
   Space,
   Table,
+  Tag,
   Typography,
-  Upload,
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import type { UploadFile } from 'antd';
-import { DeleteOutlined, EditOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
+import type { Dayjs } from 'dayjs';
+import { DeleteOutlined, EditOutlined, PictureOutlined, PlusOutlined, ScheduleOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
-import { AvailabilityBadge } from '@/components/common/AvailabilityBadge';
-import { ProductImage } from '@/components/common/ProductImage';
-import { PriceDisplay } from '@/components/common/PriceDisplay';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
-import { createProduct, deleteProduct, getProducts, updateProduct } from '@/services/productService';
+import {
+  addTourAvailability,
+  addTourImage,
+  archiveTour,
+  createTour,
+  getMyTours,
+  getTours,
+  removeTourAvailability,
+  removeTourImage,
+  updateTour,
+} from '@/services/tourService';
 import { listUsers } from '@/services/adminUserService';
-import { manualStatusFromStock } from '@/utils/bookingUtils';
 import { getErrorMessage } from '@/utils/errors';
-import type { Product } from '@/types/product';
+import type { CreateTourInput, Tour, TourStatus } from '@/types/tour';
 import type { ManagedUser } from '@/types/managedUser';
 
 interface TourFormValues {
   name: string;
-  category: string;
-  description: string;
+  slug: string;
+  description?: string;
   price: number;
-  discount: number;
-  availabilityStatus: 0 | 1 | 2;
-  latitude?: number;
-  longitude?: number;
-  seatCapacity: 1 | 4;
+  currency: string;
+  status: TourStatus;
+  capacity: number;
   guideId?: number;
 }
 
-const AVAILABILITY_OPTIONS = [
-  { value: 1, label: 'Available' },
-  { value: 2, label: 'Unavailable' },
-  { value: 0, label: 'Under Maintenance' },
+const STATUS_OPTIONS: { value: TourStatus; label: string }[] = [
+  { value: 'DRAFT', label: 'Draft' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'INACTIVE', label: 'Inactive' },
+  { value: 'ARCHIVED', label: 'Archived' },
 ];
 
-const SEAT_CAPACITY_OPTIONS = [
-  { value: 4, label: '4 Seats' },
-  { value: 1, label: '1 Seat' },
-];
+const STATUS_COLOR: Record<TourStatus, string> = {
+  DRAFT: 'default',
+  ACTIVE: 'success',
+  INACTIVE: 'warning',
+  ARCHIVED: 'error',
+};
 
-interface ImageFiles {
-  image1?: File;
-  image2?: File;
-  image3?: File;
+function slugify(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 export default function AdminTours() {
@@ -63,26 +74,38 @@ export default function AdminTours() {
   const isGuide = admin?.role === 'TOUR_GUIDE';
   const isStaff = admin?.role === 'SUPER_ADMIN' || admin?.role === 'ADMIN';
 
-  const [tours, setTours] = useState<Product[]>([]);
+  const [tours, setTours] = useState<Tour[]>([]);
   const [guides, setGuides] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [form] = Form.useForm<TourFormValues>();
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingTour, setEditingTour] = useState<Product | null>(null);
-  const [imageFiles, setImageFiles] = useState<ImageFiles>({});
+  const [editingTour, setEditingTour] = useState<Tour | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const [imagesTour, setImagesTour] = useState<Tour | null>(null);
+  const [newImageUrl, setNewImageUrl] = useState('');
+  const [addingImage, setAddingImage] = useState(false);
+
+  const [availabilityTour, setAvailabilityTour] = useState<Tour | null>(null);
+  const [newSlotDate, setNewSlotDate] = useState<Dayjs | null>(null);
+  const [newSlotSpots, setNewSlotSpots] = useState(1);
+  const [addingSlot, setAddingSlot] = useState(false);
 
   function fetchTours() {
     setLoading(true);
-    getProducts()
-      .then((results) => setTours([...results].sort((a, b) => b.id - a.id)))
+    // A guide only ever needs their own tours -- my-tours already scopes server-side,
+    // avoiding fetching (and filtering out) every other guide's tours client-side.
+    (isGuide ? getMyTours() : getTours())
+      .then((results) => setTours(results))
+      .catch((error) => message.error(getErrorMessage(error, 'Unable to load tours.')))
       .finally(() => setLoading(false));
   }
 
-  useEffect(fetchTours, []);
+  useEffect(fetchTours, [isGuide]);
 
-  // Only staff get a guide-picker in the form — a Tour Guide is always auto-assigned to their
-  // own tours, so they never need to see or choose from this list.
+  // Only staff get a guide-picker in the form -- a Tour Guide is always auto-assigned to
+  // their own tours server-side, so they never need to see or choose from this list.
   useEffect(() => {
     if (!isStaff) return;
     listUsers()
@@ -90,101 +113,49 @@ export default function AdminTours() {
       .catch(() => setGuides([]));
   }, [isStaff]);
 
-  const visibleTours = isGuide ? tours.filter((tour) => tour.guideId === admin?.id) : tours;
-
   function openAddModal() {
     setEditingTour(null);
-    setImageFiles({});
     form.resetFields();
+    form.setFieldsValue({ currency: 'JPY', status: 'ACTIVE', capacity: 1 });
     setModalOpen(true);
   }
 
-  function openEditModal(tour: Product) {
+  function openEditModal(tour: Tour) {
     setEditingTour(tour);
-    setImageFiles({});
     form.setFieldsValue({
       name: tour.name,
-      category: tour.category,
-      description: tour.description,
+      slug: tour.slug,
+      description: tour.description ?? '',
       price: tour.price,
-      discount: tour.discount,
-      availabilityStatus: tour.stock === 0 ? 0 : tour.stock === 2 ? 2 : 1,
-      latitude: tour.latitude,
-      longitude: tour.longitude,
-      seatCapacity: tour.seatCapacity,
-      guideId: tour.guideId ?? undefined,
+      currency: tour.currency,
+      status: tour.status,
+      capacity: tour.capacity,
+      guideId: tour.guide?.userId,
     });
     setModalOpen(true);
   }
 
-  function makeUploadProps(field: keyof ImageFiles) {
-    return {
-      accept: 'image/*',
-      maxCount: 1,
-      fileList: imageFiles[field] ? [{ uid: field, name: imageFiles[field]!.name } as UploadFile] : [],
-      beforeUpload: (file: File) => {
-        setImageFiles((prev) => ({ ...prev, [field]: file }));
-        return false;
-      },
-      onRemove: () => setImageFiles((prev) => ({ ...prev, [field]: undefined })),
-    };
-  }
-
   async function handleFinish(values: TourFormValues) {
-    if (!editingTour && !imageFiles.image1) {
-      message.error('Please select a primary tour image.');
-      return;
-    }
-
     setSubmitting(true);
     try {
-      const image1 = imageFiles.image1 ? URL.createObjectURL(imageFiles.image1) : editingTour!.image1;
-      const image2 = imageFiles.image2 ? URL.createObjectURL(imageFiles.image2) : (editingTour?.image2 ?? '');
-      const image3 = imageFiles.image3 ? URL.createObjectURL(imageFiles.image3) : (editingTour?.image3 ?? '');
-
-      const stock = values.availabilityStatus;
-      // A Tour Guide is always auto-assigned to their own tours — never trust a hidden/client
-      // field for this, since guides don't even see the guide-picker. Staff use whatever the
-      // picker resolved to (or leave a tour unassigned).
-      const guideId = isGuide ? (admin?.id ?? null) : (values.guideId ?? null);
+      const payload: CreateTourInput = {
+        name: values.name,
+        slug: values.slug,
+        description: values.description || undefined,
+        price: values.price,
+        currency: values.currency,
+        status: values.status,
+        capacity: values.capacity,
+        guideId: isStaff ? (values.guideId ?? null) : undefined,
+      };
 
       if (editingTour) {
-        await updateProduct({
-          id: editingTour.id,
-          name: values.name,
-          category: values.category,
-          description: values.description,
-          price: values.price,
-          discount: values.discount,
-          stock,
-          image1,
-          image2,
-          image3,
-          latitude: values.latitude,
-          longitude: values.longitude,
-          seatCapacity: values.seatCapacity,
-          guideId,
-        });
+        await updateTour(editingTour.id, payload);
         message.success('Tour updated successfully.');
       } else {
-        await createProduct({
-          name: values.name,
-          category: values.category,
-          description: values.description,
-          price: values.price,
-          discount: values.discount,
-          stock,
-          image1,
-          image2,
-          image3,
-          latitude: values.latitude,
-          longitude: values.longitude,
-          seatCapacity: values.seatCapacity,
-          guideId,
-        });
-        message.success('Tour added successfully.');
+        await createTour(payload);
+        message.success('Tour created successfully.');
       }
-
       setModalOpen(false);
       fetchTours();
     } catch (error) {
@@ -194,126 +165,178 @@ export default function AdminTours() {
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleArchive(tour: Tour) {
     try {
-      await deleteProduct(id);
-      message.success('Tour deleted.');
+      await archiveTour(tour.id);
+      message.success('Tour archived.');
       fetchTours();
     } catch (error) {
-      message.error(getErrorMessage(error, 'Unable to delete this tour.'));
+      message.error(getErrorMessage(error, 'Unable to archive this tour.'));
     }
   }
 
-  const columns: ColumnsType<Product> = [
-    { title: 'ID', dataIndex: 'id', width: 60 },
+  async function handleAddImage() {
+    if (!imagesTour || !newImageUrl.trim()) return;
+    setAddingImage(true);
+    try {
+      const image = await addTourImage(imagesTour.id, newImageUrl.trim(), imagesTour.images.length);
+      setImagesTour({ ...imagesTour, images: [...imagesTour.images, image] });
+      setNewImageUrl('');
+      fetchTours();
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Unable to add this image. Check the URL is valid.'));
+    } finally {
+      setAddingImage(false);
+    }
+  }
+
+  async function handleRemoveImage(imageId: number) {
+    if (!imagesTour) return;
+    try {
+      await removeTourImage(imagesTour.id, imageId);
+      setImagesTour({ ...imagesTour, images: imagesTour.images.filter((img) => img.id !== imageId) });
+      fetchTours();
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Unable to remove this image.'));
+    }
+  }
+
+  async function handleAddSlot() {
+    if (!availabilityTour || !newSlotDate) return;
+    setAddingSlot(true);
+    try {
+      const slot = await addTourAvailability(availabilityTour.id, newSlotDate.toISOString(), newSlotSpots);
+      setAvailabilityTour({ ...availabilityTour, availability: [...availabilityTour.availability, slot] });
+      setNewSlotDate(null);
+      setNewSlotSpots(1);
+      fetchTours();
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Unable to add this availability slot.'));
+    } finally {
+      setAddingSlot(false);
+    }
+  }
+
+  async function handleRemoveSlot(availabilityId: number) {
+    if (!availabilityTour) return;
+    try {
+      await removeTourAvailability(availabilityTour.id, availabilityId);
+      setAvailabilityTour({
+        ...availabilityTour,
+        availability: availabilityTour.availability.filter((slot) => slot.id !== availabilityId),
+      });
+      fetchTours();
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Unable to remove this availability slot.'));
+    }
+  }
+
+  if (loading) return <PageSpinner />;
+
+  const columns: ColumnsType<Tour> = [
     { title: 'Name', dataIndex: 'name' },
-    { title: 'Tour Type', dataIndex: 'category' },
-    {
-      title: 'Tour Price (with Sale)',
-      key: 'price',
-      render: (_, tour) => <PriceDisplay price={tour.price} discount={tour.discount} />,
-    },
-    { title: 'Discount', dataIndex: 'discount', render: (discount: number) => `${discount}%` },
-    {
-      title: 'Manual Availability',
-      key: 'availability',
-      render: (_, tour) => <AvailabilityBadge status={manualStatusFromStock(tour.stock)} />,
-    },
-    {
-      title: 'Images',
-      key: 'images',
-      render: (_, tour) => (
-        <Space>
-          {[tour.image1, tour.image2, tour.image3].filter(Boolean).map((img, idx) => (
-            <ProductImage key={idx} fileName={img} alt={`${tour.name} ${idx + 1}`} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} />
-          ))}
-        </Space>
-      ),
-    },
+    { title: 'Slug', dataIndex: 'slug', render: (slug: string) => <Typography.Text code>{slug}</Typography.Text> },
+    { title: 'Price', dataIndex: 'price', render: (price: number, tour) => `${tour.currency} ${price.toLocaleString()}` },
+    { title: 'Status', dataIndex: 'status', render: (status: TourStatus) => <Tag color={STATUS_COLOR[status]}>{status}</Tag> },
+    { title: 'Guide', dataIndex: 'guide', render: (guide: Tour['guide']) => guide?.fullName ?? '— unassigned —' },
+    { title: 'Images', dataIndex: 'images', render: (images: Tour['images']) => images.length },
     {
       title: 'Actions',
       key: 'actions',
-      render: (_, tour) => {
-        const canEdit = isStaff || (isGuide && tour.guideId === admin?.id);
-        const canDelete = admin?.role === 'SUPER_ADMIN' || (isGuide && tour.guideId === admin?.id);
-        return (
-          <Space>
-            {canEdit && <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(tour)} />}
-            {canDelete && (
-              <Popconfirm title={`Delete ${tour.name} from the fleet?`} onConfirm={() => handleDelete(tour.id)}>
-                <Button size="small" danger icon={<DeleteOutlined />} />
-              </Popconfirm>
-            )}
-          </Space>
-        );
-      },
+      render: (_, tour) => (
+        <Space wrap>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(tour)}>
+            Edit
+          </Button>
+          <Button size="small" icon={<PictureOutlined />} onClick={() => setImagesTour(tour)}>
+            Images
+          </Button>
+          <Button size="small" icon={<ScheduleOutlined />} onClick={() => setAvailabilityTour(tour)}>
+            Availability
+          </Button>
+          {tour.status !== 'ARCHIVED' && (isStaff ? admin?.role === 'SUPER_ADMIN' : true) && (
+            <Popconfirm title={`Archive "${tour.name}"?`} onConfirm={() => handleArchive(tour)}>
+              <Button size="small" danger icon={<DeleteOutlined />}>
+                Archive
+              </Button>
+            </Popconfirm>
+          )}
+        </Space>
+      ),
     },
   ];
-
-  if (loading) return <PageSpinner />;
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <Typography.Title level={3} style={{ margin: 0 }}>
-          Manage Tours
+          Tours
         </Typography.Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
           Add Tour
         </Button>
       </div>
 
-      <Table columns={columns} dataSource={visibleTours} rowKey="id" scroll={{ x: true }} />
+      <Table columns={columns} dataSource={tours} rowKey="id" scroll={{ x: true }} />
 
       <Modal
-        title={editingTour ? 'Edit Tour' : 'Add New Tour'}
+        title={editingTour ? 'Edit Tour' : 'Add Tour'}
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         onOk={() => form.submit()}
         confirmLoading={submitting}
-        okText={editingTour ? 'Save Changes' : 'Add Tour'}
-        width={640}
+        okText={editingTour ? 'Save Changes' : 'Create Tour'}
+        width={560}
       >
-        <Form<TourFormValues> form={form} layout="vertical" onFinish={handleFinish}>
+        <Form<TourFormValues>
+          form={form}
+          layout="vertical"
+          onFinish={handleFinish}
+          onValuesChange={(changed) => {
+            // Auto-fill the slug from the name for a new tour, until the user edits it directly.
+            if (!editingTour && changed.name !== undefined) {
+              const currentSlug = form.getFieldValue('slug');
+              const autoSlug = slugify(form.getFieldValue('name') ?? '');
+              if (!currentSlug || currentSlug === slugify(changed.name ?? '').slice(0, currentSlug.length)) {
+                form.setFieldsValue({ slug: autoSlug });
+              }
+            }
+          }}
+        >
           <Form.Item label="Tour Name" name="name" rules={[{ required: true, message: 'Tour name is required.' }]}>
-            <Input placeholder="Enter tour name" />
-          </Form.Item>
-          <Form.Item label="Tour Type" name="category" rules={[{ required: true, message: 'Tour type is required.' }]}>
-            <Input placeholder="e.g. Sports Car, Group Tour" />
-          </Form.Item>
-          <Form.Item label="Tour Description" name="description">
-            <Input.TextArea rows={3} placeholder="Short description of the tour" />
-          </Form.Item>
-          <Form.Item label="Tour Price" name="price" rules={[{ required: true, message: 'Tour price is required.' }]}>
-            <InputNumber style={{ width: '100%' }} min={0} step={0.01} placeholder="Enter tour price" />
-          </Form.Item>
-          <Form.Item label="Sale Discount (%)" name="discount" initialValue={0}>
-            <InputNumber style={{ width: '100%' }} min={0} max={100} />
+            <Input placeholder="e.g. Mt. Fuji JDM Drive Tour" />
           </Form.Item>
           <Form.Item
-            label="Manual Availability"
-            name="availabilityStatus"
-            initialValue={1}
-            rules={[{ required: true, message: 'Select an availability status.' }]}
-            extra="This controls manual overrides. Date bookings still make tours unavailable dynamically."
+            label="Slug"
+            name="slug"
+            rules={[
+              { required: true, message: 'Slug is required.' },
+              { pattern: /^[a-z0-9]+(-[a-z0-9]+)*$/, message: 'Lowercase, alphanumeric, hyphen-separated only.' },
+            ]}
           >
-            <Select options={AVAILABILITY_OPTIONS} />
+            <Input placeholder="e.g. mt-fuji-jdm-drive-tour" />
           </Form.Item>
-          <Form.Item
-            label="Seat Capacity"
-            name="seatCapacity"
-            initialValue={4}
-            rules={[{ required: true, message: 'Select a seat capacity.' }]}
-            extra="Caps how many seats a customer can select when booking. The tour price is flat per booking and does not change with seat count."
-          >
-            <Select options={SEAT_CAPACITY_OPTIONS} />
+          <Form.Item label="Description" name="description">
+            <Input.TextArea rows={3} placeholder="Describe the tour..." />
           </Form.Item>
+          <Space.Compact block>
+            <Form.Item label="Price" name="price" rules={[{ required: true, message: 'Price is required.' }]} style={{ flex: 1 }}>
+              <InputNumber style={{ width: '100%' }} min={0.01} placeholder="25000" />
+            </Form.Item>
+            <Form.Item label="Currency" name="currency" style={{ width: 100 }}>
+              <Input maxLength={3} style={{ textTransform: 'uppercase' }} />
+            </Form.Item>
+          </Space.Compact>
+          <Space.Compact block>
+            <Form.Item label="Status" name="status" style={{ flex: 1 }}>
+              <Select options={STATUS_OPTIONS} />
+            </Form.Item>
+            <Form.Item label="Capacity" name="capacity" style={{ flex: 1 }}>
+              <InputNumber style={{ width: '100%' }} min={1} />
+            </Form.Item>
+          </Space.Compact>
           {isStaff && (
-            <Form.Item
-              label="Assign Guide"
-              name="guideId"
-              extra="Leave blank to keep this tour staff-managed (unassigned)."
-            >
+            <Form.Item label="Tour Guide" name="guideId">
               <Select
                 allowClear
                 placeholder="Unassigned"
@@ -321,34 +344,77 @@ export default function AdminTours() {
               />
             </Form.Item>
           )}
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item label="Latitude" name="latitude" style={{ flex: 1 }}>
-              <InputNumber style={{ width: '100%' }} step={0.000001} placeholder="e.g. 35.658600" />
-            </Form.Item>
-            <Form.Item label="Longitude" name="longitude" style={{ flex: 1 }}>
-              <InputNumber style={{ width: '100%' }} step={0.000001} placeholder="e.g. 139.745400" />
-            </Form.Item>
-          </div>
-          <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginTop: -16, marginBottom: 16 }}>
-            Optional. Powers the weather forecast on the tour detail page.
-          </Typography.Paragraph>
-          <Form.Item label="Tour Images" required={!editingTour}>
-            <Space orientation="vertical">
-              <Upload {...makeUploadProps('image1')}>
-                <Button icon={<UploadOutlined />}>Primary Image</Button>
-              </Upload>
-              <Upload {...makeUploadProps('image2')}>
-                <Button icon={<UploadOutlined />}>Gallery Image 2 (optional)</Button>
-              </Upload>
-              <Upload {...makeUploadProps('image3')}>
-                <Button icon={<UploadOutlined />}>Gallery Image 3 (optional)</Button>
-              </Upload>
-            </Space>
-            <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginTop: 8 }}>
-              {editingTour ? 'Leave blank to keep existing images.' : 'Upload JPG or PNG files.'}
-            </Typography.Paragraph>
-          </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={`Images — ${imagesTour?.name ?? ''}`}
+        open={imagesTour !== null}
+        onCancel={() => setImagesTour(null)}
+        footer={null}
+      >
+        <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
+          Paste a link to an already-hosted image (this backend doesn't have file upload/storage —
+          host the image elsewhere first, e.g. an image host or CDN, then paste its URL here).
+        </Typography.Paragraph>
+        <Space wrap style={{ marginBottom: 16 }}>
+          {imagesTour?.images.map((img) => (
+            <div key={img.id} style={{ position: 'relative' }}>
+              <Image src={img.imageUrl} alt="Tour" width={100} height={100} style={{ objectFit: 'cover', borderRadius: 6 }} />
+              <Button
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                style={{ position: 'absolute', top: 2, right: 2 }}
+                onClick={() => handleRemoveImage(img.id)}
+              />
+            </div>
+          ))}
+        </Space>
+        <Space.Compact block>
+          <Input
+            placeholder="https://example.com/image.jpg"
+            value={newImageUrl}
+            onChange={(e) => setNewImageUrl(e.target.value)}
+            onPressEnter={handleAddImage}
+          />
+          <Button type="primary" loading={addingImage} onClick={handleAddImage}>
+            Add
+          </Button>
+        </Space.Compact>
+      </Modal>
+
+      <Modal
+        title={`Availability — ${availabilityTour?.name ?? ''}`}
+        open={availabilityTour !== null}
+        onCancel={() => setAvailabilityTour(null)}
+        footer={null}
+      >
+        <Space orientation="vertical" style={{ width: '100%' }} size="small">
+          {availabilityTour?.availability.map((slot) => (
+            <div key={slot.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>
+                {dayjs(slot.startDatetime).format('MMM D, YYYY h:mm A')} — {slot.spotsRemaining} spots
+              </span>
+              <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleRemoveSlot(slot.id)} />
+            </div>
+          ))}
+          {availabilityTour?.availability.length === 0 && (
+            <Typography.Text type="secondary">No availability slots yet.</Typography.Text>
+          )}
+        </Space>
+
+        <Space.Compact block style={{ marginTop: 16 }}>
+          <input
+            type="datetime-local"
+            style={{ flex: 1, padding: '4px 11px', border: '1px solid #d9d9d9', borderRadius: '6px 0 0 6px' }}
+            onChange={(e) => setNewSlotDate(e.target.value ? dayjs(e.target.value) : null)}
+          />
+          <InputNumber min={1} value={newSlotSpots} onChange={(v) => setNewSlotSpots(v ?? 1)} placeholder="Spots" />
+          <Button type="primary" loading={addingSlot} onClick={handleAddSlot} disabled={!newSlotDate}>
+            Add
+          </Button>
+        </Space.Compact>
       </Modal>
     </div>
   );
