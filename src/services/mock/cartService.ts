@@ -55,7 +55,7 @@ export async function getCart(): Promise<CartSummary> {
       if (!tour) return null;
       // Tour price is flat per booking, not per seat — quantity does not multiply the price.
       const subtotal = tour.price;
-      const seatCapacity: 1 | 4 = tour.capacity >= 4 ? 4 : 1;
+      const seatCapacity: 1 | 4 = tour.seats >= 4 ? 4 : 1;
       return {
         index,
         productId: tour.id,

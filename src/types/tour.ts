@@ -30,7 +30,7 @@ export interface Tour {
   price: number;
   currency: string;
   status: TourStatus;
-  capacity: number;
+  seats: number;
   guide: TourGuide | null;
   images: TourImage[];
   availability: TourAvailability[];
@@ -45,7 +45,7 @@ export interface CreateTourInput {
   price: number;
   currency?: string;
   status?: TourStatus;
-  capacity?: number;
+  seats?: number;
   guideId?: number | null;
   /** Images already uploaded via uploadService — attaches them in the same create request. Max 20. */
   images?: CreateTourImageInput[];
@@ -58,7 +58,7 @@ export interface UpdateTourInput {
   price?: number;
   currency?: string;
   status?: TourStatus;
-  capacity?: number;
+  seats?: number;
   guideId?: number | null;
 }
 

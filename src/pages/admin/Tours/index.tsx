@@ -43,7 +43,7 @@ interface TourFormValues {
   price: number;
   currency: string;
   status: TourStatus;
-  capacity: number;
+  seats: number;
 }
 
 const TOUR_STATUS_OPTIONS: { value: TourStatus; label: string }[] = [
@@ -237,7 +237,7 @@ export default function AdminTours() {
         price: values.price,
         currency: values.currency,
         status: values.status,
-        capacity: values.capacity,
+        seats: values.seats,
         images: newTourImages.length
           ? newTourImages.map((imageUrl, sortOrder) => ({ imageUrl, sortOrder }))
           : undefined,
@@ -262,7 +262,7 @@ export default function AdminTours() {
       price: tour.price,
       currency: tour.currency,
       status: tour.status,
-      capacity: tour.capacity,
+      seats: tour.seats,
     });
     setEditModalOpen(true);
   }
@@ -278,7 +278,7 @@ export default function AdminTours() {
         price: values.price,
         currency: values.currency,
         status: values.status,
-        capacity: values.capacity,
+        seats: values.seats,
       };
       await updateTour(editingTour.id, input);
       message.success('Tour updated successfully.');
@@ -374,7 +374,7 @@ export default function AdminTours() {
       dataIndex: 'status',
       render: (status: TourStatus) => <Tag color={STATUS_COLOR[status]}>{status}</Tag>,
     },
-    { title: 'Capacity', dataIndex: 'capacity' },
+    { title: 'Seats', dataIndex: 'seats' },
     {
       title: 'Guide',
       key: 'guide',
@@ -441,7 +441,7 @@ export default function AdminTours() {
           layout="vertical"
           onFinish={handleCreateFinish}
           onValuesChange={handleCreateValuesChange}
-          initialValues={{ currency: 'JPY', status: 'ACTIVE', capacity: 1 }}
+          initialValues={{ currency: 'JPY', status: 'ACTIVE', seats: 1 }}
         >
           <Form.Item label="Tour Name" name="name" rules={[{ required: true, message: 'Tour name is required.' }]}>
             <Input placeholder="Enter tour name" />
@@ -473,7 +473,7 @@ export default function AdminTours() {
           <Form.Item label="Status" name="status" rules={[{ required: true, message: 'Select a status.' }]}>
             <Select options={TOUR_STATUS_OPTIONS} />
           </Form.Item>
-          <Form.Item label="Capacity" name="capacity" rules={[{ required: true, message: 'Capacity is required.' }]}>
+          <Form.Item label="Seats" name="seats" rules={[{ required: true, message: 'Seats is required.' }]}>
             <InputNumber style={{ width: '100%' }} min={1} step={1} placeholder="Number of seats" />
           </Form.Item>
           <Form.Item label="Images" extra="JPEG, PNG, WebP or AVIF, up to 5 MB each.">
@@ -550,7 +550,7 @@ export default function AdminTours() {
           <Form.Item label="Status" name="status" rules={[{ required: true, message: 'Select a status.' }]}>
             <Select options={TOUR_STATUS_OPTIONS} />
           </Form.Item>
-          <Form.Item label="Capacity" name="capacity" rules={[{ required: true, message: 'Capacity is required.' }]}>
+          <Form.Item label="Seats" name="seats" rules={[{ required: true, message: 'Seats is required.' }]}>
             <InputNumber style={{ width: '100%' }} min={1} step={1} placeholder="Number of seats" />
           </Form.Item>
           {editingTour && (
