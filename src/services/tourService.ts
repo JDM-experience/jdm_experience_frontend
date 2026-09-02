@@ -51,8 +51,14 @@ export async function updateTour(id: number, input: UpdateTourInput): Promise<To
   return res.data;
 }
 
-export async function archiveTour(id: number): Promise<void> {
+export async function deleteTour(id: number): Promise<void> {
   await httpClient.delete<ApiEnvelope<null>>(`/tours/${id}`);
+}
+
+/** Staff-only: moves a PENDING tour to AVAILABLE. */
+export async function confirmTour(id: number): Promise<Tour> {
+  const res = await httpClient.post<ApiEnvelope<Tour>>(`/tours/${id}/confirm`, undefined);
+  return res.data;
 }
 
 export async function addTourImage(tourId: number, input: CreateTourImageInput): Promise<TourImage> {

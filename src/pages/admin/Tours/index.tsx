@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
-import dayjs from 'dayjs';
-import type { Dayjs } from 'dayjs';
 import {
   Button,
-  DatePicker,
   Form,
   Input,
   InputNumber,
@@ -18,23 +15,23 @@ import {
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { DeleteOutlined, EditOutlined, PictureOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, DeleteOutlined, EditOutlined, PictureOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { ProductImage } from '@/components/common/ProductImage';
+import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import {
-  addTourAvailability,
   addTourImage,
-  archiveTour,
+  confirmTour,
   createTour,
+  deleteTour,
   listTourGuides,
   listTours,
-  removeTourAvailability,
   removeTourImage,
   updateTour,
 } from '@/services/tourService';
 import { ALLOWED_IMAGE_TYPES, uploadTourImage } from '@/services/uploadService';
 import { getErrorMessage } from '@/utils/errors';
-import { formatCurrency, formatDateTime, slugify } from '@/utils/formatters';
+import { formatCurrency, slugify } from '@/utils/formatters';
 import type { Tour, TourGuide, TourStatus, UpdateTourInput } from '@/types/tour';
 
 interface TourFormValues {
@@ -43,23 +40,32 @@ interface TourFormValues {
   description?: string;
   price: number;
   currency: string;
-  status: TourStatus;
   seats: number;
   guideId?: number;
+  /** Edit form only (staff-only field) — a new tour always starts PENDING server-side. */
+  status?: TourStatus;
 }
 
-const TOUR_STATUS_OPTIONS: { value: TourStatus; label: string }[] = [
-  { value: 'DRAFT', label: 'Draft' },
-  { value: 'ACTIVE', label: 'Active' },
-  { value: 'INACTIVE', label: 'Inactive' },
-  { value: 'ARCHIVED', label: 'Archived' },
+/** Manual transitions only — a tour reaches AVAILABLE for the first time solely via "Confirm"
+ *  (PENDING is not selectable here, it's the automatic starting state). */
+const MANUAL_STATUS_OPTIONS: { value: TourStatus; label: string }[] = [
+  { value: 'AVAILABLE', label: 'Available' },
+  { value: 'UNAVAILABLE', label: 'Unavailable' },
+  { value: 'UNDER_MAINTENANCE', label: 'Under Maintenance' },
 ];
 
+const STATUS_LABEL: Record<TourStatus, string> = {
+  PENDING: 'Pending',
+  AVAILABLE: 'Available',
+  UNAVAILABLE: 'Unavailable',
+  UNDER_MAINTENANCE: 'Under Maintenance',
+};
+
 const STATUS_COLOR: Record<TourStatus, string> = {
-  DRAFT: 'default',
-  ACTIVE: 'green',
-  INACTIVE: 'orange',
-  ARCHIVED: 'red',
+  PENDING: 'gold',
+  AVAILABLE: 'green',
+  UNAVAILABLE: 'red',
+  UNDER_MAINTENANCE: 'orange',
 };
 
 const IMAGE_ACCEPT = ALLOWED_IMAGE_TYPES.join(',');
@@ -155,6 +161,11 @@ function TourImagesEditor({ tour, onChange }: { tour: Tour; onChange: () => void
 }
 
 export default function AdminTours() {
+  const { admin } = useAdminAuth();
+  const isSuperAdmin = admin?.role === 'SUPER_ADMIN';
+  const isStaff = isSuperAdmin || admin?.role === 'ADMIN';
+  const isGuide = admin?.role === 'TOUR_GUIDE';
+
   const [tours, setTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(true);
   const [guides, setGuides] = useState<TourGuide[]>([]);
@@ -174,11 +185,8 @@ export default function AdminTours() {
   const [imagesModalOpen, setImagesModalOpen] = useState(false);
   const [imagesTour, setImagesTour] = useState<Tour | null>(null);
 
-  const [availabilityModalOpen, setAvailabilityModalOpen] = useState(false);
-  const [availabilityTour, setAvailabilityTour] = useState<Tour | null>(null);
-  const [newSlotDatetime, setNewSlotDatetime] = useState<Dayjs | null>(null);
-  const [newSlotSpots, setNewSlotSpots] = useState(1);
-  const [addingSlot, setAddingSlot] = useState(false);
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
+  const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
 
   function fetchTours() {
     setLoading(true);
@@ -202,7 +210,6 @@ export default function AdminTours() {
     setTours([...results].sort((a, b) => b.id - a.id));
     if (updated) {
       setImagesTour((prev) => (prev && prev.id === id ? updated : prev));
-      setAvailabilityTour((prev) => (prev && prev.id === id ? updated : prev));
       setEditingTour((prev) => (prev && prev.id === id ? updated : prev));
     }
   }
@@ -246,14 +253,13 @@ export default function AdminTours() {
         description: values.description?.trim() || undefined,
         price: values.price,
         currency: values.currency,
-        status: values.status,
         seats: values.seats,
         guideId: values.guideId,
         images: newTourImages.length
           ? newTourImages.map((imageUrl, sortOrder) => ({ imageUrl, sortOrder }))
           : undefined,
       });
-      message.success('Tour created successfully.');
+      message.success('Tour created — it starts Pending until an Admin confirms it.');
       setCreateModalOpen(false);
       fetchTours();
     } catch (error) {
@@ -289,9 +295,11 @@ export default function AdminTours() {
         description: values.description?.trim() || undefined,
         price: values.price,
         currency: values.currency,
-        status: values.status,
         seats: values.seats,
-        guideId: values.guideId ?? null,
+        // A Tour Guide never gets a status/guideId control rendered (see the Edit modal below),
+        // and the backend rejects a guide-submitted status change regardless — this just avoids
+        // sending fields the form never showed.
+        ...(isStaff ? { status: values.status, guideId: values.guideId ?? null } : {}),
       };
       await updateTour(editingTour.id, input);
       message.success('Tour updated successfully.');
@@ -304,14 +312,42 @@ export default function AdminTours() {
     }
   }
 
-  // Archive
-  async function handleArchive(id: number) {
+  // Delete
+  async function handleDelete(id: number) {
     try {
-      await archiveTour(id);
-      message.success('Tour archived.');
+      await deleteTour(id);
+      message.success('Tour deleted.');
       fetchTours();
     } catch (error) {
-      message.error(getErrorMessage(error, 'Unable to archive this tour.'));
+      message.error(getErrorMessage(error, 'Unable to delete this tour.'));
+    }
+  }
+
+  // Availability status — confirmation (PENDING -> AVAILABLE) and manual transitions. Staff-only;
+  // the backend also rejects a status change from a Tour Guide.
+  async function handleConfirm(id: number) {
+    setConfirmingId(id);
+    try {
+      await confirmTour(id);
+      message.success('Tour confirmed — now Available.');
+      fetchTours();
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Unable to confirm this tour.'));
+    } finally {
+      setConfirmingId(null);
+    }
+  }
+
+  async function handleStatusChange(id: number, status: TourStatus) {
+    setStatusUpdatingId(id);
+    try {
+      await updateTour(id, { status });
+      message.success(`Status changed to ${STATUS_LABEL[status]}.`);
+      fetchTours();
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Unable to change this tour\'s status.'));
+    } finally {
+      setStatusUpdatingId(null);
     }
   }
 
@@ -319,42 +355,6 @@ export default function AdminTours() {
   function openImagesModal(tour: Tour) {
     setImagesTour(tour);
     setImagesModalOpen(true);
-  }
-
-  // Availability
-  function openAvailabilityModal(tour: Tour) {
-    setAvailabilityTour(tour);
-    setNewSlotDatetime(null);
-    setNewSlotSpots(1);
-    setAvailabilityModalOpen(true);
-  }
-
-  async function handleAddSlot() {
-    if (!availabilityTour || !newSlotDatetime) return;
-    setAddingSlot(true);
-    try {
-      await addTourAvailability(availabilityTour.id, {
-        startDatetime: newSlotDatetime.format('YYYY-MM-DDTHH:mm:ssZ'),
-        spotsRemaining: newSlotSpots,
-      });
-      setNewSlotDatetime(null);
-      setNewSlotSpots(1);
-      await refreshTour(availabilityTour.id);
-    } catch (error) {
-      message.error(getErrorMessage(error, 'Unable to add this slot.'));
-    } finally {
-      setAddingSlot(false);
-    }
-  }
-
-  async function handleRemoveSlot(availabilityId: number) {
-    if (!availabilityTour) return;
-    try {
-      await removeTourAvailability(availabilityTour.id, availabilityId);
-      await refreshTour(availabilityTour.id);
-    } catch (error) {
-      message.error(getErrorMessage(error, 'Unable to remove this slot.'));
-    }
   }
 
   const columns: ColumnsType<Tour> = [
@@ -385,7 +385,22 @@ export default function AdminTours() {
     {
       title: 'Status',
       dataIndex: 'status',
-      render: (status: TourStatus) => <Tag color={STATUS_COLOR[status]}>{status}</Tag>,
+      render: (status: TourStatus, tour) => {
+        const tag = <Tag color={STATUS_COLOR[status]}>{STATUS_LABEL[status]}</Tag>;
+        // Manual transitions are staff-only, and only make sense once a tour is past PENDING —
+        // getting to AVAILABLE for the first time goes through "Confirm" instead (Actions column).
+        if (!isStaff || status === 'PENDING') return tag;
+        return (
+          <Select<TourStatus>
+            size="small"
+            value={status}
+            style={{ width: 168 }}
+            options={MANUAL_STATUS_OPTIONS}
+            loading={statusUpdatingId === tour.id}
+            onChange={(value) => handleStatusChange(tour.id, value)}
+          />
+        );
+      },
     },
     { title: 'Seats', dataIndex: 'seats' },
     {
@@ -403,25 +418,30 @@ export default function AdminTours() {
       ),
     },
     {
-      title: 'Availability',
-      key: 'availability',
-      render: (_, tour) => (
-        <Button size="small" onClick={() => openAvailabilityModal(tour)}>
-          {tour.availability.length} slot{tour.availability.length === 1 ? '' : 's'}
-        </Button>
-      ),
-    },
-    {
       title: 'Actions',
       key: 'actions',
-      render: (_, tour) => (
-        <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(tour)} />
-          <Popconfirm title={`Archive ${tour.name}?`} onConfirm={() => handleArchive(tour.id)}>
-            <Button size="small" danger icon={<DeleteOutlined />} disabled={tour.status === 'ARCHIVED'} />
-          </Popconfirm>
-        </Space>
-      ),
+      render: (_, tour) => {
+        const ownsTour = isGuide && tour.guide?.userId === admin?.id;
+        const canEdit = isStaff || ownsTour;
+        const canDelete = isSuperAdmin || ownsTour;
+        return (
+          <Space>
+            {isStaff && tour.status === 'PENDING' && (
+              <Popconfirm title={`Confirm ${tour.name} as Available?`} onConfirm={() => handleConfirm(tour.id)}>
+                <Button size="small" icon={<CheckCircleOutlined />} loading={confirmingId === tour.id}>
+                  Confirm
+                </Button>
+              </Popconfirm>
+            )}
+            {canEdit && <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(tour)} />}
+            {canDelete && (
+              <Popconfirm title={`Delete ${tour.name}?`} onConfirm={() => handleDelete(tour.id)}>
+                <Button size="small" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            )}
+          </Space>
+        );
+      },
     },
   ];
 
@@ -454,7 +474,7 @@ export default function AdminTours() {
           layout="vertical"
           onFinish={handleCreateFinish}
           onValuesChange={handleCreateValuesChange}
-          initialValues={{ currency: 'JPY', status: 'ACTIVE', seats: 1 }}
+          initialValues={{ currency: 'JPY', seats: 1 }}
         >
           <Form.Item label="Tour Name" name="name" rules={[{ required: true, message: 'Tour name is required.' }]}>
             <Input placeholder="Enter tour name" />
@@ -483,20 +503,23 @@ export default function AdminTours() {
           >
             <Input maxLength={3} placeholder="JPY" style={{ textTransform: 'uppercase' }} />
           </Form.Item>
-          <Form.Item label="Status" name="status" rules={[{ required: true, message: 'Select a status.' }]}>
-            <Select options={TOUR_STATUS_OPTIONS} />
-          </Form.Item>
           <Form.Item label="Seats" name="seats" rules={[{ required: true, message: 'Seats is required.' }]}>
             <InputNumber style={{ width: '100%' }} min={1} step={1} placeholder="Number of seats" />
           </Form.Item>
-          <Form.Item label="Tour Guide" name="guideId" extra="Who this tour is assigned to. Leave unset to keep it unassigned.">
-            <Select
-              allowClear
-              placeholder="Unassigned"
-              options={GUIDE_OPTIONS}
-              notFoundContent="No tour guides available"
-            />
-          </Form.Item>
+          {isStaff && (
+            <Form.Item label="Tour Guide" name="guideId" extra="Who this tour is assigned to. Leave unset to keep it unassigned.">
+              <Select
+                allowClear
+                placeholder="Unassigned"
+                options={GUIDE_OPTIONS}
+                notFoundContent="No tour guides available"
+              />
+            </Form.Item>
+          )}
+          <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 16, fontSize: 12 }}>
+            New tours start as <strong>Pending</strong> — an Admin must confirm the tour before it
+            becomes Available to customers.
+          </Typography.Text>
           <Form.Item label="Images" extra="JPEG, PNG, WebP or AVIF, up to 5 MB each.">
             {newTourImages.length > 0 && (
               <Space wrap style={{ marginBottom: 8 }}>
@@ -568,20 +591,29 @@ export default function AdminTours() {
           >
             <Input maxLength={3} placeholder="JPY" style={{ textTransform: 'uppercase' }} />
           </Form.Item>
-          <Form.Item label="Status" name="status" rules={[{ required: true, message: 'Select a status.' }]}>
-            <Select options={TOUR_STATUS_OPTIONS} />
-          </Form.Item>
           <Form.Item label="Seats" name="seats" rules={[{ required: true, message: 'Seats is required.' }]}>
             <InputNumber style={{ width: '100%' }} min={1} step={1} placeholder="Number of seats" />
           </Form.Item>
-          <Form.Item label="Tour Guide" name="guideId" extra="Who this tour is assigned to. Leave unset to keep it unassigned.">
-            <Select
-              allowClear
-              placeholder="Unassigned"
-              options={GUIDE_OPTIONS}
-              notFoundContent="No tour guides available"
-            />
-          </Form.Item>
+          {isStaff && (
+            <>
+              <Form.Item
+                label="Status"
+                name="status"
+                rules={[{ required: true, message: 'Select a status.' }]}
+                extra={editingTour?.status === 'PENDING' ? 'Use "Confirm" on the tour list to make a Pending tour Available.' : undefined}
+              >
+                <Select options={editingTour?.status === 'PENDING' ? [{ value: 'PENDING', label: 'Pending' }] : MANUAL_STATUS_OPTIONS} disabled={editingTour?.status === 'PENDING'} />
+              </Form.Item>
+              <Form.Item label="Tour Guide" name="guideId" extra="Who this tour is assigned to. Leave unset to keep it unassigned.">
+                <Select
+                  allowClear
+                  placeholder="Unassigned"
+                  options={GUIDE_OPTIONS}
+                  notFoundContent="No tour guides available"
+                />
+              </Form.Item>
+            </>
+          )}
           {editingTour && (
             <Form.Item label="Images">
               <TourImagesEditor tour={editingTour} onChange={() => refreshTour(editingTour.id)} />
@@ -598,43 +630,6 @@ export default function AdminTours() {
         width={560}
       >
         {imagesTour && <TourImagesEditor tour={imagesTour} onChange={() => refreshTour(imagesTour.id)} />}
-      </Modal>
-
-      <Modal
-        title={`Manage Availability${availabilityTour ? ` — ${availabilityTour.name}` : ''}`}
-        open={availabilityModalOpen}
-        onCancel={() => setAvailabilityModalOpen(false)}
-        footer={null}
-        width={560}
-      >
-        {availabilityTour && (
-          <>
-            <Space orientation="vertical" style={{ width: '100%' }} size="middle">
-              {availabilityTour.availability.length === 0 && (
-                <Typography.Text type="secondary">No slots yet.</Typography.Text>
-              )}
-              {[...availabilityTour.availability]
-                .sort((a, b) => dayjs(a.startDatetime).valueOf() - dayjs(b.startDatetime).valueOf())
-                .map((slot) => (
-                  <div key={slot.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <Typography.Text style={{ flex: 1 }}>
-                      {formatDateTime(slot.startDatetime)} — {slot.spotsRemaining} spot{slot.spotsRemaining === 1 ? '' : 's'}
-                    </Typography.Text>
-                    <Popconfirm title="Remove this slot?" onConfirm={() => handleRemoveSlot(slot.id)}>
-                      <Button size="small" danger icon={<DeleteOutlined />} />
-                    </Popconfirm>
-                  </div>
-                ))}
-            </Space>
-            <Space style={{ marginTop: 16 }}>
-              <DatePicker showTime value={newSlotDatetime} onChange={setNewSlotDatetime} />
-              <InputNumber min={0} value={newSlotSpots} onChange={(v) => setNewSlotSpots(v ?? 0)} placeholder="Spots" />
-              <Button type="primary" loading={addingSlot} onClick={handleAddSlot} disabled={!newSlotDatetime}>
-                Add Slot
-              </Button>
-            </Space>
-          </>
-        )}
       </Modal>
     </div>
   );

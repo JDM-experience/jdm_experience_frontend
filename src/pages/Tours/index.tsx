@@ -27,7 +27,7 @@ export default function Tours() {
 
   useEffect(() => {
     setLoading(true);
-    listTours({ status: 'ACTIVE' })
+    listTours({ status: 'AVAILABLE' })
       .then(setTours)
       .finally(() => setLoading(false));
   }, []);

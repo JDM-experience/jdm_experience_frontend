@@ -31,7 +31,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    listTours({ status: 'ACTIVE' })
+    listTours({ status: 'AVAILABLE' })
       .then((results) => setTours([...results].sort((a, b) => b.id - a.id).slice(0, 8)))
       .finally(() => setLoading(false));
   }, []);

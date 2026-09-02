@@ -41,7 +41,7 @@ export function Navbar() {
     }
     const handle = setTimeout(() => {
       const lower = term.toLowerCase();
-      listTours({ status: 'ACTIVE' })
+      listTours({ status: 'AVAILABLE' })
         .then((tours) =>
           setSuggestions(
             tours

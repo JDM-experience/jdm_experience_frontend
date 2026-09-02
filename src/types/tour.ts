@@ -1,5 +1,10 @@
-/** Mirrors the Node.js backend's Tour shape (see jdm_experience_backend/src/validators/tour.validator.ts). */
-export type TourStatus = 'DRAFT' | 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
+/**
+ * Mirrors the Node.js backend's Tour shape (see jdm_experience_backend/src/validators/tour.validator.ts).
+ * Tour-level operational state only — NOT per-date bookability, which is TourAvailability below.
+ * A new tour always starts PENDING and only reaches AVAILABLE via POST /tours/:id/confirm; staff
+ * can then move it manually between AVAILABLE/UNAVAILABLE/UNDER_MAINTENANCE.
+ */
+export type TourStatus = 'PENDING' | 'AVAILABLE' | 'UNAVAILABLE' | 'UNDER_MAINTENANCE';
 
 export interface TourGuide {
   id: number;
@@ -44,7 +49,8 @@ export interface CreateTourInput {
   description?: string;
   price: number;
   currency?: string;
-  status?: TourStatus;
+  // No status here — every new tour starts PENDING server-side; use confirmTour()/updateTour()
+  // afterward to move it to AVAILABLE (or another status).
   seats?: number;
   guideId?: number | null;
   /** Images already uploaded via uploadService — attaches them in the same create request. Max 20. */

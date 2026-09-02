@@ -23,7 +23,7 @@ export async function createOrder(userId: number | null, input: CreateOrderInput
     if (!tour) {
       throw new ApiError('One of the selected tours was not found.', 404);
     }
-    if (tour.status !== 'ACTIVE') {
+    if (tour.status !== 'AVAILABLE') {
       throw new ApiError(`${tour.name} is not currently available for booking.`, 409);
     }
   }

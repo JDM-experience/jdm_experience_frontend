@@ -89,7 +89,7 @@ export async function addToCart(input: AddToCartInput): Promise<void> {
 
   const tour = await getTourById(input.productId);
   if (!tour) throw new ApiError('Tour not found.', 404);
-  if (tour.status !== 'ACTIVE') throw new ApiError('This tour is not currently available for booking.', 409);
+  if (tour.status !== 'AVAILABLE') throw new ApiError('This tour is not currently available for booking.', 409);
 
   const lines = loadRawCart();
   const duplicate = lines.some(
@@ -113,7 +113,7 @@ export async function updateCartItem(input: UpdateCartItemInput): Promise<void> 
 
   const tour = await getTourById(existing.productId);
   if (!tour) throw new ApiError('Tour not found.', 404);
-  if (tour.status !== 'ACTIVE') throw new ApiError('This tour is not currently available for booking.', 409);
+  if (tour.status !== 'AVAILABLE') throw new ApiError('This tour is not currently available for booking.', 409);
 
   const duplicate = lines.some(
     (line, idx) =>

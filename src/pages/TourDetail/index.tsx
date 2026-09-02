@@ -85,7 +85,7 @@ export default function TourDetail() {
 
   const gallery = tour.images.map((img) => img.imageUrl);
   const status = tourAvailabilityStatus(tour);
-  const bookable = tour.status === 'ACTIVE' && selectedOption !== undefined;
+  const bookable = tour.status === 'AVAILABLE' && selectedOption !== undefined;
 
   async function handleReserve() {
     if (!tour || !selectedOption) {
