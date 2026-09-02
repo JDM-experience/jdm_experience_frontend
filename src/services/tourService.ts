@@ -2,16 +2,40 @@
 // being migrated off services/mock/productService onto the live API.
 import { httpClient } from './httpClient';
 import { ApiError } from '@/types/api';
-import type { CreateTourImageInput, CreateTourInput, Tour, TourGuide, TourImage, TourStatus, UpdateTourInput } from '@/types/tour';
+import type {
+  CreateTourImageInput,
+  CreateTourInput,
+  SortOrder,
+  Tour,
+  TourGuide,
+  TourImage,
+  TourSortBy,
+  TourStatus,
+  UpdateTourInput,
+} from '@/types/tour';
 
 interface ApiEnvelope<T> {
   success: boolean;
   data: T;
 }
 
-export async function listTours(filters: { status?: TourStatus } = {}): Promise<Tour[]> {
-  const query = filters.status ? `?status=${filters.status}` : '';
-  const res = await httpClient.get<ApiEnvelope<Tour[]>>(`/tours${query}`);
+export interface ListToursFilters {
+  status?: TourStatus;
+  /** Matches tours whose name or description contains this (case-insensitive) — performed by the
+   *  database, not filtered client-side. */
+  search?: string;
+  sortBy?: TourSortBy;
+  sortOrder?: SortOrder;
+}
+
+export async function listTours(filters: ListToursFilters = {}): Promise<Tour[]> {
+  const params = new URLSearchParams();
+  if (filters.status) params.set('status', filters.status);
+  if (filters.search) params.set('search', filters.search);
+  if (filters.sortBy) params.set('sortBy', filters.sortBy);
+  if (filters.sortOrder) params.set('sortOrder', filters.sortOrder);
+  const query = params.toString();
+  const res = await httpClient.get<ApiEnvelope<Tour[]>>(`/tours${query ? `?${query}` : ''}`);
   return res.data;
 }
 

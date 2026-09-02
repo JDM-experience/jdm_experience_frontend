@@ -40,15 +40,12 @@ export function Navbar() {
       return;
     }
     const handle = setTimeout(() => {
-      const lower = term.toLowerCase();
-      listTours({ status: 'AVAILABLE' })
+      // Search + sort are performed by the backend (GET /tours?search=&sortBy=name&sortOrder=asc)
+      // -- only the display cap (top 20) happens here, not the actual matching/ordering.
+      listTours({ status: 'AVAILABLE', search: term, sortBy: 'name', sortOrder: 'asc' })
         .then((tours) =>
           setSuggestions(
-            tours
-              .filter((t) => t.name.toLowerCase().includes(lower))
-              .sort((a, b) => a.name.localeCompare(b.name))
-              .slice(0, 20)
-              .map((t) => ({ id: t.id, name: t.name, price: t.price, image: t.images[0]?.imageUrl ?? '' })),
+            tours.slice(0, 20).map((t) => ({ id: t.id, name: t.name, price: t.price, image: t.images[0]?.imageUrl ?? '' })),
           ),
         )
         .catch(() => setSuggestions([]));

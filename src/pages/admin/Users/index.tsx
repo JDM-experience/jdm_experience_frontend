@@ -13,14 +13,24 @@ import type { UserRole } from '@/types/admin';
 interface UserFormValues {
   fullName: string;
   email: string;
-  role: 'ADMIN' | 'TOUR_GUIDE';
+  role: 'ADMIN' | 'TOUR_GUIDE' | 'CUSTOMER';
 }
 
-// Only Admin/Tour Guide are offered here — never Super Admin (a Super Admin creating another
-// Super Admin isn't exposed in this UI) and never Customer (customers self-register).
-const ROLE_OPTIONS = [
+// Creating a brand-new placeholder row only makes sense for Admin/Tour Guide — never Super Admin
+// (a Super Admin creating another Super Admin isn't exposed in this UI) and never Customer
+// (customers self-register via Auth0 on their first login).
+const CREATE_ROLE_OPTIONS = [
   { value: 'ADMIN', label: 'Admin' },
   { value: 'TOUR_GUIDE', label: 'Tour Guide' },
+];
+
+// Editing an existing user's role can go anywhere except Super Admin (same reasoning as above,
+// and demoting/reassigning a Super Admin through this UI isn't exposed either) — this is what
+// actually promotes a Customer to Admin/Tour Guide, or reverses a promotion back to Customer.
+const EDIT_ROLE_OPTIONS = [
+  { value: 'ADMIN', label: 'Admin' },
+  { value: 'TOUR_GUIDE', label: 'Tour Guide' },
+  { value: 'CUSTOMER', label: 'Customer' },
 ];
 
 const ROLE_TAG_COLOR: Record<UserRole, string> = {
@@ -79,7 +89,7 @@ export default function AdminUsers() {
     form.setFieldsValue({
       fullName: user.fullName ?? '',
       email: user.email,
-      role: user.role === 'ADMIN' || user.role === 'TOUR_GUIDE' ? user.role : 'ADMIN',
+      role: user.role === 'SUPER_ADMIN' ? 'ADMIN' : user.role,
     });
     setModalOpen(true);
   }
@@ -143,7 +153,7 @@ export default function AdminUsers() {
             key: 'actions',
             render: (_: unknown, user: ManagedUser) => (
               <Space>
-                {(user.role === 'ADMIN' || user.role === 'TOUR_GUIDE') && (
+                {user.role !== 'SUPER_ADMIN' && (
                   <Button size="small" onClick={() => openEditModal(user)}>
                     Edit
                   </Button>
@@ -209,7 +219,7 @@ export default function AdminUsers() {
             </Typography.Paragraph>
           )}
           <Form.Item label="Role" name="role" initialValue="ADMIN" rules={[{ required: true }]}>
-            <Select options={ROLE_OPTIONS} />
+            <Select options={editingUser ? EDIT_ROLE_OPTIONS : CREATE_ROLE_OPTIONS} />
           </Form.Item>
         </Form>
       </Modal>

@@ -1,45 +1,53 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Popconfirm, Table, Typography, message } from 'antd';
+import { Button, Popconfirm, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { DeleteOutlined, EyeOutlined } from '@ant-design/icons';
+import { EyeOutlined, StopOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
-import { deleteCustomer, getCustomers } from '@/services/customerService';
+import { deactivateCustomer, getCustomers } from '@/services/customerService';
 import { formatDateTime } from '@/utils/formatters';
 import { getErrorMessage } from '@/utils/errors';
-import type { User } from '@/types/user';
+import type { Customer } from '@/types/customer';
 
 export default function AdminCustomers() {
   const { admin } = useAdminAuth();
-  const isStaff = admin?.role === 'SUPER_ADMIN' || admin?.role === 'ADMIN';
+  // Matches the backend: DELETE /users/:id (which deactivating a customer reuses) is
+  // SUPER_ADMIN-only -- an Admin would just get a 403 if this were shown to them too.
+  const isSuperAdmin = admin?.role === 'SUPER_ADMIN';
 
-  const [customers, setCustomers] = useState<User[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
 
   function fetchCustomers() {
     setLoading(true);
     getCustomers()
       .then(setCustomers)
+      .catch((error) => message.error(getErrorMessage(error, 'Unable to load customers.')))
       .finally(() => setLoading(false));
   }
 
   useEffect(fetchCustomers, []);
 
-  async function handleDelete(id: number) {
+  async function handleDeactivate(id: number) {
     try {
-      await deleteCustomer(id);
-      message.success('Customer deleted successfully.');
-      setCustomers((prev) => prev.filter((c) => c.id !== id));
+      await deactivateCustomer(id);
+      message.success('Customer deactivated.');
+      setCustomers((prev) => prev.map((c) => (c.id === id ? { ...c, isActive: false } : c)));
     } catch (error) {
-      message.error(getErrorMessage(error, 'Customer not found or already deleted.'));
+      message.error(getErrorMessage(error, 'Unable to deactivate this customer.'));
     }
   }
 
-  const columns: ColumnsType<User> = [
+  const columns: ColumnsType<Customer> = [
     { title: 'ID', dataIndex: 'id', width: 60 },
-    { title: 'Full Name', dataIndex: 'fullName' },
+    { title: 'Full Name', dataIndex: 'fullName', render: (name: string | null) => name || '—' },
     { title: 'Email', dataIndex: 'email' },
+    {
+      title: 'Status',
+      dataIndex: 'isActive',
+      render: (isActive: boolean) => <Tag color={isActive ? 'success' : 'default'}>{isActive ? 'Active' : 'Deactivated'}</Tag>,
+    },
     { title: 'Date Registered', dataIndex: 'createdAt', render: (value: string) => formatDateTime(value) },
     {
       title: 'Action',
@@ -51,13 +59,14 @@ export default function AdminCustomers() {
               View
             </Button>
           </Link>
-          {isStaff && (
+          {isSuperAdmin && customer.isActive && (
             <Popconfirm
-              title="Are you sure you want to delete this customer? This action cannot be undone."
-              onConfirm={() => handleDelete(customer.id)}
+              title="Deactivate this customer's account?"
+              description="They will no longer be able to log in. This can be undone from the Users page."
+              onConfirm={() => handleDeactivate(customer.id)}
             >
-              <Button size="small" danger icon={<DeleteOutlined />}>
-                Delete
+              <Button size="small" danger icon={<StopOutlined />}>
+                Deactivate
               </Button>
             </Popconfirm>
           )}

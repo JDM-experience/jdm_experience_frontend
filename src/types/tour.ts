@@ -8,6 +8,11 @@
  */
 export type TourStatus = 'PENDING' | 'AVAILABLE' | 'UNAVAILABLE' | 'UNDER_MAINTENANCE';
 
+/** Mirrors the backend's GET /tours whitelist (tourListQuerySchema) — the only fields the API
+ *  will actually sort by. */
+export type TourSortBy = 'name' | 'price' | 'seats' | 'createdAt' | 'status';
+export type SortOrder = 'asc' | 'desc';
+
 export interface TourGuide {
   id: number;
   userId: number;

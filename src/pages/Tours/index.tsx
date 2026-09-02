@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Col, Input, Row, Select, Space, Typography } from 'antd';
+import { Col, Input, Row, Select, Space, Typography, message } from 'antd';
 import { TourCard } from '@/components/common/TourCard';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { listTours } from '@/services/tourService';
-import type { Tour } from '@/types/tour';
+import { getErrorMessage } from '@/utils/errors';
+import type { SortOrder, Tour, TourSortBy } from '@/types/tour';
 
 type TourSort = 'az' | 'za' | 'low' | 'high';
 
@@ -17,6 +18,16 @@ const SORT_OPTIONS: { value: TourSort | ''; label: string }[] = [
   { value: 'high', label: 'Tour Price: High to Low' },
 ];
 
+/** Maps this page's UI-facing sort choice onto the backend's sortBy/sortOrder query params —
+ *  the API does the actual sorting (database ORDER BY), this is just a label-to-params lookup.
+ *  Unset/unrecognized falls back to the same default the UI always had: name ascending. */
+const SORT_TO_PARAMS: Record<TourSort, { sortBy: TourSortBy; sortOrder: SortOrder }> = {
+  az: { sortBy: 'name', sortOrder: 'asc' },
+  za: { sortBy: 'name', sortOrder: 'desc' },
+  low: { sortBy: 'price', sortOrder: 'asc' },
+  high: { sortBy: 'price', sortOrder: 'desc' },
+};
+
 export default function Tours() {
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get('search') ?? '';
@@ -27,37 +38,12 @@ export default function Tours() {
 
   useEffect(() => {
     setLoading(true);
-    listTours({ status: 'AVAILABLE' })
+    const { sortBy, sortOrder } = SORT_TO_PARAMS[sort || 'az'];
+    listTours({ status: 'AVAILABLE', search: search || undefined, sortBy, sortOrder })
       .then(setTours)
+      .catch((error) => message.error(getErrorMessage(error, 'Unable to load tours.')))
       .finally(() => setLoading(false));
-  }, []);
-
-  const visibleTours = useMemo(() => {
-    let results = [...tours];
-
-    if (search) {
-      const term = search.toLowerCase();
-      results = results.filter((t) => t.name.toLowerCase().includes(term));
-    }
-
-    switch (sort) {
-      case 'za':
-        results.sort((a, b) => b.name.localeCompare(a.name));
-        break;
-      case 'low':
-        results.sort((a, b) => a.price - b.price);
-        break;
-      case 'high':
-        results.sort((a, b) => b.price - a.price);
-        break;
-      case 'az':
-      default:
-        results.sort((a, b) => a.name.localeCompare(b.name));
-        break;
-    }
-
-    return results;
-  }, [tours, search, sort]);
+  }, [search, sort]);
 
   function updateParam(key: string, value: string) {
     const next = new URLSearchParams(searchParams);
@@ -108,11 +94,11 @@ export default function Tours() {
 
       {loading ? (
         <PageSpinner />
-      ) : visibleTours.length === 0 ? (
+      ) : tours.length === 0 ? (
         <EmptyState title="No tours found." />
       ) : (
         <Row gutter={[24, 24]}>
-          {visibleTours.map((tour) => (
+          {tours.map((tour) => (
             <Col key={tour.id} xs={24} sm={12} md={8} lg={6}>
               <TourCard tour={tour} />
             </Col>

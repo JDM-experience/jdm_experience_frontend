@@ -31,8 +31,10 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // No local sort needed -- the backend's default order (id desc, newest first) already
+    // matches what this section wants; only the display-count truncation happens client-side.
     listTours({ status: 'AVAILABLE' })
-      .then((results) => setTours([...results].sort((a, b) => b.id - a.id).slice(0, 8)))
+      .then((results) => setTours(results.slice(0, 8)))
       .finally(() => setLoading(false));
   }, []);
 

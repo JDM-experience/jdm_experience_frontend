@@ -188,10 +188,12 @@ export default function AdminTours() {
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
 
+  // No local sort needed -- listTours() with no sortBy already gets the backend's default order
+  // (id desc, newest first).
   function fetchTours() {
     setLoading(true);
     listTours()
-      .then((results) => setTours([...results].sort((a, b) => b.id - a.id)))
+      .then(setTours)
       .finally(() => setLoading(false));
   }
 
@@ -207,7 +209,7 @@ export default function AdminTours() {
   async function refreshTour(id: number) {
     const results = await listTours();
     const updated = results.find((t) => t.id === id) ?? null;
-    setTours([...results].sort((a, b) => b.id - a.id));
+    setTours(results);
     if (updated) {
       setImagesTour((prev) => (prev && prev.id === id ? updated : prev));
       setEditingTour((prev) => (prev && prev.id === id ? updated : prev));
