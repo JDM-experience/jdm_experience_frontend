@@ -1,6 +1,5 @@
 import type { Product } from '@/types/product';
 import type { Order } from '@/types/order';
-import type { ContactMessage } from '@/types/contactMessage';
 
 export interface MockUserRecord {
   id: number;
@@ -20,13 +19,11 @@ interface MockDatabase {
   products: Product[];
   users: MockUserRecord[];
   orders: Order[];
-  messages: ContactMessage[];
   admins: MockAdminRecord[];
   nextIds: {
     product: number;
     user: number;
     order: number;
-    message: number;
   };
 }
 
@@ -231,23 +228,7 @@ function buildSeedDatabase(): MockDatabase {
         ],
       },
     ],
-    messages: [
-      {
-        id: 1,
-        name: 'Kenji Ito',
-        email: 'kenji.ito@example.com',
-        message: 'Do you offer tours for groups larger than 4 people?',
-        createdAt: '2026-07-28 11:20:00',
-      },
-      {
-        id: 2,
-        name: 'Emily Chen',
-        email: 'emily.chen@example.com',
-        message: 'Is the Rainbow Bridge tour available on weekday evenings?',
-        createdAt: '2026-08-02 08:05:00',
-      },
-    ],
-    nextIds: { product: 9, user: 3, order: 3, message: 3 },
+    nextIds: { product: 9, user: 3, order: 3 },
   };
 }
 
