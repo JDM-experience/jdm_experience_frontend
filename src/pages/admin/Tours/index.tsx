@@ -460,7 +460,13 @@ export default function AdminTours() {
         </Button>
       </div>
 
-      <Table columns={columns} dataSource={tours} rowKey="id" scroll={{ x: true }} />
+      <Table
+        columns={columns}
+        dataSource={tours}
+        rowKey="id"
+        scroll={{ x: true }}
+        pagination={{ pageSize: 20, showSizeChanger: true, hideOnSinglePage: true }}
+      />
 
       <Modal
         title="Create Tour"

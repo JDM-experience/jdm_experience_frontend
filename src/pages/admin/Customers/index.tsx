@@ -82,7 +82,13 @@ export default function AdminCustomers() {
       <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 24 }}>
         Customer Maintenance
       </Typography.Title>
-      <Table columns={columns} dataSource={customers} rowKey="id" scroll={{ x: true }} />
+      <Table
+        columns={columns}
+        dataSource={customers}
+        rowKey="id"
+        scroll={{ x: true }}
+        pagination={{ pageSize: 20, showSizeChanger: true, hideOnSinglePage: true }}
+      />
     </div>
   );
 }

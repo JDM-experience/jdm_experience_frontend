@@ -189,7 +189,13 @@ export default function AdminUsers() {
         )}
       </div>
 
-      <Table columns={columns} dataSource={users} rowKey="id" scroll={{ x: true }} />
+      <Table
+        columns={columns}
+        dataSource={users}
+        rowKey="id"
+        scroll={{ x: true }}
+        pagination={{ pageSize: 20, showSizeChanger: true, hideOnSinglePage: true }}
+      />
 
       <Modal
         title={editingUser ? 'Edit User' : 'Add Admin or Tour Guide'}
