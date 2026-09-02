@@ -2,17 +2,7 @@
 // being migrated off services/mock/productService onto the live API.
 import { httpClient } from './httpClient';
 import { ApiError } from '@/types/api';
-import type {
-  CreateTourAvailabilityInput,
-  CreateTourImageInput,
-  CreateTourInput,
-  Tour,
-  TourAvailability,
-  TourGuide,
-  TourImage,
-  TourStatus,
-  UpdateTourInput,
-} from '@/types/tour';
+import type { CreateTourImageInput, CreateTourInput, Tour, TourGuide, TourImage, TourStatus, UpdateTourInput } from '@/types/tour';
 
 interface ApiEnvelope<T> {
   success: boolean;
@@ -70,11 +60,9 @@ export async function removeTourImage(tourId: number, imageId: number): Promise<
   await httpClient.delete<ApiEnvelope<null>>(`/tours/${tourId}/images/${imageId}`);
 }
 
-export async function addTourAvailability(tourId: number, input: CreateTourAvailabilityInput): Promise<TourAvailability> {
-  const res = await httpClient.post<ApiEnvelope<TourAvailability>>(`/tours/${tourId}/availability`, input);
+/** Future dates (YYYY-MM-DD) that already have a CONFIRMED booking — not bookable by anyone else.
+ *  A date not in this list is open, subject to the tour's own status and the JST same-day cutoff. */
+export async function getBookedDates(tourId: number): Promise<string[]> {
+  const res = await httpClient.get<ApiEnvelope<string[]>>(`/tours/${tourId}/booked-dates`);
   return res.data;
-}
-
-export async function removeTourAvailability(tourId: number, availabilityId: number): Promise<void> {
-  await httpClient.delete<ApiEnvelope<null>>(`/tours/${tourId}/availability/${availabilityId}`);
 }

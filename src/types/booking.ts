@@ -9,7 +9,6 @@ export interface Booking {
   id: number;
   userId: number;
   tourId: number;
-  availabilityId: number | null;
   bookingDate: string;
   participants: number;
   status: BookingStatus;

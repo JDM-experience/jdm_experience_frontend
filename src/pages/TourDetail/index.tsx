@@ -1,35 +1,20 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { Button, Col, Image, Input, InputNumber, Modal, Row, Select, Space, Typography, message } from 'antd';
+import type { Dayjs } from 'dayjs';
+import { Button, Col, DatePicker, Image, Input, InputNumber, Modal, Row, Space, Typography, message } from 'antd';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ProductImage } from '@/components/common/ProductImage';
 import { PriceDisplay } from '@/components/common/PriceDisplay';
 import { AvailabilityBadge } from '@/components/common/AvailabilityBadge';
 import { useAuth } from '@/contexts/AuthContext';
-import { getTourById } from '@/services/tourService';
+import { getBookedDates, getTourById } from '@/services/tourService';
 import { createBooking } from '@/services/bookingService';
-import { formatTourDate, tourAvailabilityStatus } from '@/utils/bookingUtils';
+import { formatTourDate, isBookingClosedForDate, tourAvailabilityStatus } from '@/utils/bookingUtils';
 import { getErrorMessage } from '@/utils/errors';
 import type { Booking } from '@/types/booking';
-import type { Tour, TourAvailability } from '@/types/tour';
-
-/** The JST calendar date a slot falls on. The backend resolves `bookingDate` against
- *  Asia/Tokyo, and only ever books one date per day for a tour, so the customer picks a date --
- *  never a time -- and same-day bookings close at the 17:00 JST cutoff (enforced server-side). */
-function jstDateOf(isoDatetime: string): string {
-  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' });
-  return formatter.format(new Date(isoDatetime));
-}
-
-/** One selectable option per JST calendar date. Slots are expected to be one-per-day, but if
- *  more than one ever lands on the same date, their remaining spots are combined so the
- *  participant cap stays accurate either way. */
-interface DateOption {
-  date: string;
-  spotsRemaining: number;
-}
+import type { Tour } from '@/types/tour';
 
 export default function TourDetail() {
   const { id } = useParams<{ id: string }>();
@@ -41,6 +26,9 @@ export default function TourDetail() {
   const [loading, setLoading] = useState(true);
   const [mainImage, setMainImage] = useState('');
 
+  // Dates already CONFIRMED-booked for this tour — a tour-date is exclusive to one such booking
+  // (like reserving the whole vehicle for the day), so these are simply disabled in the picker.
+  const [bookedDates, setBookedDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [participants, setParticipants] = useState(1);
   const [specialRequests, setSpecialRequests] = useState('');
@@ -56,23 +44,10 @@ export default function TourDetail() {
       })
       .catch((error) => message.error(getErrorMessage(error, 'Unable to load this tour.')))
       .finally(() => setLoading(false));
+    getBookedDates(tourId)
+      .then(setBookedDates)
+      .catch(() => undefined); // Non-fatal — worst case a taken date shows selectable and the backend rejects it.
   }, [tourId]);
-
-  const dateOptions = useMemo<DateOption[]>(() => {
-    if (!tour) return [];
-    const now = dayjs();
-    const byDate = new Map<string, number>();
-    for (const slot of tour.availability as TourAvailability[]) {
-      if (slot.spotsRemaining <= 0 || !dayjs(slot.startDatetime).isAfter(now)) continue;
-      const date = jstDateOf(slot.startDatetime);
-      byDate.set(date, (byDate.get(date) ?? 0) + slot.spotsRemaining);
-    }
-    return [...byDate.entries()]
-      .map(([date, spotsRemaining]) => ({ date, spotsRemaining }))
-      .sort((a, b) => (a.date < b.date ? -1 : 1));
-  }, [tour]);
-
-  const selectedOption = dateOptions.find((opt) => opt.date === selectedDate);
 
   if (loading) return <PageSpinner />;
   if (!tour) {
@@ -85,11 +60,17 @@ export default function TourDetail() {
 
   const gallery = tour.images.map((img) => img.imageUrl);
   const status = tourAvailabilityStatus(tour);
-  const bookable = tour.status === 'AVAILABLE' && selectedOption !== undefined;
+  const bookable = tour.status === 'AVAILABLE' && selectedDate !== null;
+
+  function isDateDisabled(date: Dayjs): boolean {
+    if (date.isBefore(dayjs(), 'day')) return true;
+    const iso = date.format('YYYY-MM-DD');
+    return bookedDates.includes(iso) || isBookingClosedForDate(iso);
+  }
 
   async function handleReserve() {
-    if (!tour || !selectedOption) {
-      message.warning('Please select an available tour date.');
+    if (!tour || !selectedDate) {
+      message.warning('Please select a tour date.');
       return;
     }
     if (!isAuthenticated) {
@@ -101,15 +82,16 @@ export default function TourDetail() {
     try {
       const booking = await createBooking({
         tourId: tour.id,
-        bookingDate: selectedOption.date,
+        bookingDate: selectedDate,
         participants,
         specialRequests: specialRequests.trim() || undefined,
       });
       setConfirmedBooking(booking);
     } catch (error) {
       message.error(getErrorMessage(error, 'Unable to reserve this tour.'));
-      // Remaining spots may be stale (someone else just booked the same date) -- refetch.
-      getTourById(tourId).then(setTour);
+      // The date may have just been confirmed for someone else — refetch so it shows disabled.
+      setSelectedDate(null);
+      getBookedDates(tourId).then(setBookedDates);
     } finally {
       setSubmitting(false);
     }
@@ -160,9 +142,9 @@ export default function TourDetail() {
             <Typography.Text strong>Availability Status: </Typography.Text>
             <AvailabilityBadge status={status} />
             <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
-              {dateOptions.length > 0
-                ? `${dateOptions.length} date${dateOptions.length === 1 ? '' : 's'} open for booking.`
-                : 'No upcoming dates are open for booking right now.'}
+              {status === 'Available'
+                ? 'Pick any open date below — booking closes for the current day after 5:00 PM Japan time.'
+                : 'This tour is not currently open for booking.'}
             </Typography.Paragraph>
           </div>
 
@@ -170,20 +152,16 @@ export default function TourDetail() {
           <Space orientation="vertical" size="middle" style={{ width: '100%', maxWidth: 360 }}>
             <div>
               <Typography.Text>Tour Date</Typography.Text>
-              <Select
+              <DatePicker
                 style={{ width: '100%' }}
-                placeholder={dateOptions.length === 0 ? 'No dates available' : 'Choose a date'}
-                disabled={dateOptions.length === 0}
-                value={selectedDate ?? undefined}
+                placeholder="Choose a date"
+                disabled={tour.status !== 'AVAILABLE'}
+                disabledDate={isDateDisabled}
+                value={selectedDate ? dayjs(selectedDate) : null}
                 onChange={(date) => {
-                  setSelectedDate(date);
+                  setSelectedDate(date ? date.format('YYYY-MM-DD') : null);
                   setParticipants(1);
                 }}
-                options={dateOptions.map((opt) => ({
-                  value: opt.date,
-                  label: `${formatTourDate(opt.date)} — ${opt.spotsRemaining} spot${opt.spotsRemaining === 1 ? '' : 's'} left`,
-                }))}
-                notFoundContent="No available dates"
               />
             </div>
 
@@ -192,9 +170,9 @@ export default function TourDetail() {
               <InputNumber
                 style={{ width: '100%' }}
                 min={1}
-                max={selectedOption ? Math.min(selectedOption.spotsRemaining, tour.seats) : tour.seats}
+                max={tour.seats}
                 value={participants}
-                disabled={!selectedOption}
+                disabled={!selectedDate}
                 onChange={(v) => setParticipants(v ?? 1)}
               />
             </div>

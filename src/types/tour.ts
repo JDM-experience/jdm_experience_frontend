@@ -1,8 +1,10 @@
 /**
  * Mirrors the Node.js backend's Tour shape (see jdm_experience_backend/src/validators/tour.validator.ts).
- * Tour-level operational state only — NOT per-date bookability, which is TourAvailability below.
- * A new tour always starts PENDING and only reaches AVAILABLE via POST /tours/:id/confirm; staff
- * can then move it manually between AVAILABLE/UNAVAILABLE/UNDER_MAINTENANCE.
+ * Tour-level operational state only — NOT per-date bookability. A date's booked/free state is
+ * derived entirely from Bookings (see tourService.getBookedDates) — there's no separate
+ * availability/slot list on the tour itself. A new tour always starts PENDING and only reaches
+ * AVAILABLE via POST /tours/:id/confirm; staff can then move it manually between
+ * AVAILABLE/UNAVAILABLE/UNDER_MAINTENANCE.
  */
 export type TourStatus = 'PENDING' | 'AVAILABLE' | 'UNAVAILABLE' | 'UNDER_MAINTENANCE';
 
@@ -21,12 +23,6 @@ export interface TourImage {
   sortOrder: number;
 }
 
-export interface TourAvailability {
-  id: number;
-  startDatetime: string;
-  spotsRemaining: number;
-}
-
 export interface Tour {
   id: number;
   name: string;
@@ -35,10 +31,11 @@ export interface Tour {
   price: number;
   currency: string;
   status: TourStatus;
+  /** Cap on `participants` for a single booking — not a capacity pool shared across bookings; a
+   *  tour-date is exclusive to one CONFIRMED booking regardless of how many seats it used. */
   seats: number;
   guide: TourGuide | null;
   images: TourImage[];
-  availability: TourAvailability[];
   createdAt: string;
   updatedAt: string;
 }
@@ -71,10 +68,4 @@ export interface UpdateTourInput {
 export interface CreateTourImageInput {
   imageUrl: string;
   sortOrder?: number;
-}
-
-export interface CreateTourAvailabilityInput {
-  /** ISO 8601 datetime with an explicit UTC offset, e.g. `2026-09-01T09:00:00+09:00`. */
-  startDatetime: string;
-  spotsRemaining: number;
 }

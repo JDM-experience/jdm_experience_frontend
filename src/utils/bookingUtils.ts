@@ -4,16 +4,13 @@ import type { AvailabilityResult } from '@/types/availability';
 import type { Tour } from '@/types/tour';
 import { BOOKING_CUTOFF_HOUR_JST } from '@/constants';
 
-/** A Tour has no manual stock flag — availability instead comes from its tour-level `status`
- *  (PENDING/AVAILABLE/UNAVAILABLE/UNDER_MAINTENANCE) and, once AVAILABLE, whether any of its
- *  date slots are still bookable. */
-export function tourAvailabilityStatus(tour: Pick<Tour, 'status' | 'availability'>): AvailabilityStatus {
+/** A Tour has no manual stock flag — availability instead comes directly from its tour-level
+ *  `status`. There's no per-date slot list to check: once AVAILABLE, a customer can request any
+ *  date that isn't already CONFIRMED-booked (see tourService.getBookedDates). */
+export function tourAvailabilityStatus(tour: Pick<Tour, 'status'>): AvailabilityStatus {
   if (tour.status === 'UNDER_MAINTENANCE') return 'Under Maintenance';
   if (tour.status !== 'AVAILABLE') return 'Unavailable'; // PENDING or UNAVAILABLE
-  const hasOpenSlot = tour.availability.some(
-    (slot) => slot.spotsRemaining > 0 && dayjs(slot.startDatetime).isAfter(dayjs()),
-  );
-  return hasOpenSlot ? 'Available' : 'Unavailable';
+  return 'Available';
 }
 
 /**
