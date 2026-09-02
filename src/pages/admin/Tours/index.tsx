@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import type { Dayjs } from 'dayjs';
 import {
   Button,
+  DatePicker,
   Form,
   Input,
   InputNumber,
@@ -15,23 +17,33 @@ import {
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { CheckCircleOutlined, DeleteOutlined, EditOutlined, PictureOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import {
+  CalendarOutlined,
+  CheckCircleOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  PictureOutlined,
+  PlusOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { ProductImage } from '@/components/common/ProductImage';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import {
+  addTourAvailability,
   addTourImage,
   confirmTour,
   createTour,
   deleteTour,
   listTourGuides,
   listTours,
+  removeTourAvailability,
   removeTourImage,
   updateTour,
 } from '@/services/tourService';
 import { ALLOWED_IMAGE_TYPES, uploadTourImage } from '@/services/uploadService';
 import { getErrorMessage } from '@/utils/errors';
-import { formatCurrency, slugify } from '@/utils/formatters';
+import { formatCurrency, formatDateTime, slugify } from '@/utils/formatters';
 import type { Tour, TourGuide, TourStatus, UpdateTourInput } from '@/types/tour';
 
 interface TourFormValues {
@@ -185,6 +197,12 @@ export default function AdminTours() {
   const [imagesModalOpen, setImagesModalOpen] = useState(false);
   const [imagesTour, setImagesTour] = useState<Tour | null>(null);
 
+  const [availabilityModalOpen, setAvailabilityModalOpen] = useState(false);
+  const [availabilityTour, setAvailabilityTour] = useState<Tour | null>(null);
+  const [newSlotDatetime, setNewSlotDatetime] = useState<Dayjs | null>(null);
+  const [newSlotSpots, setNewSlotSpots] = useState(1);
+  const [addingSlot, setAddingSlot] = useState(false);
+
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
 
@@ -210,6 +228,7 @@ export default function AdminTours() {
     setTours([...results].sort((a, b) => b.id - a.id));
     if (updated) {
       setImagesTour((prev) => (prev && prev.id === id ? updated : prev));
+      setAvailabilityTour((prev) => (prev && prev.id === id ? updated : prev));
       setEditingTour((prev) => (prev && prev.id === id ? updated : prev));
     }
   }
@@ -357,6 +376,44 @@ export default function AdminTours() {
     setImagesModalOpen(true);
   }
 
+  // Availability (bookable dates)
+  function openAvailabilityModal(tour: Tour) {
+    setAvailabilityTour(tour);
+    setNewSlotDatetime(null);
+    setNewSlotSpots(1);
+    setAvailabilityModalOpen(true);
+  }
+
+  async function handleAddSlot() {
+    if (!availabilityTour || !newSlotDatetime) return;
+    setAddingSlot(true);
+    try {
+      await addTourAvailability(availabilityTour.id, {
+        startDatetime: newSlotDatetime.toISOString(),
+        spotsRemaining: newSlotSpots,
+      });
+      message.success('Date added.');
+      setNewSlotDatetime(null);
+      setNewSlotSpots(1);
+      await refreshTour(availabilityTour.id);
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Unable to add this date.'));
+    } finally {
+      setAddingSlot(false);
+    }
+  }
+
+  async function handleRemoveSlot(availabilityId: number) {
+    if (!availabilityTour) return;
+    try {
+      await removeTourAvailability(availabilityTour.id, availabilityId);
+      message.success('Date removed.');
+      await refreshTour(availabilityTour.id);
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Unable to remove this date.'));
+    }
+  }
+
   const columns: ColumnsType<Tour> = [
     { title: 'ID', dataIndex: 'id', width: 60 },
     {
@@ -414,6 +471,15 @@ export default function AdminTours() {
       render: (_, tour) => (
         <Button size="small" icon={<PictureOutlined />} onClick={() => openImagesModal(tour)}>
           {tour.images.length}
+        </Button>
+      ),
+    },
+    {
+      title: 'Dates',
+      key: 'availability',
+      render: (_, tour) => (
+        <Button size="small" icon={<CalendarOutlined />} onClick={() => openAvailabilityModal(tour)}>
+          {tour.availability.length}
         </Button>
       ),
     },
@@ -630,6 +696,49 @@ export default function AdminTours() {
         width={560}
       >
         {imagesTour && <TourImagesEditor tour={imagesTour} onChange={() => refreshTour(imagesTour.id)} />}
+      </Modal>
+
+      <Modal
+        title={`Manage Dates${availabilityTour ? ` — ${availabilityTour.name}` : ''}`}
+        open={availabilityModalOpen}
+        onCancel={() => setAvailabilityModalOpen(false)}
+        footer={null}
+        width={560}
+      >
+        {availabilityTour && (
+          <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+            <Space wrap>
+              {availabilityTour.availability.length === 0 && (
+                <Typography.Text type="secondary">No dates yet.</Typography.Text>
+              )}
+              {availabilityTour.availability.map((slot) => (
+                <Tag key={slot.id} closable onClose={() => handleRemoveSlot(slot.id)}>
+                  {formatDateTime(slot.startDatetime)} — {slot.spotsRemaining} spot{slot.spotsRemaining === 1 ? '' : 's'}
+                </Tag>
+              ))}
+            </Space>
+
+            <Space.Compact style={{ width: '100%' }}>
+              <DatePicker
+                showTime
+                style={{ width: '60%' }}
+                value={newSlotDatetime}
+                onChange={setNewSlotDatetime}
+                placeholder="Date & time"
+              />
+              <InputNumber
+                style={{ width: '25%' }}
+                min={1}
+                step={1}
+                value={newSlotSpots}
+                onChange={(v) => setNewSlotSpots(v ?? 1)}
+              />
+              <Button type="primary" style={{ width: '15%' }} loading={addingSlot} onClick={handleAddSlot}>
+                Add
+              </Button>
+            </Space.Compact>
+          </Space>
+        )}
       </Modal>
     </div>
   );
