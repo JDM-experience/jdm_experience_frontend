@@ -5,6 +5,7 @@ import type { MenuProps } from 'antd';
 import { CalendarOutlined, MenuOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
+import { getMyBookings } from '@/services/bookingService';
 import { listTours } from '@/services/tourService';
 import { formatCurrency } from '@/utils/formatters';
 
@@ -32,6 +33,21 @@ export function Navbar() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
+  const [unpaidCount, setUnpaidCount] = useState(0);
+
+  // Notifies the user they have reservation(s) still needing payment. A CANCELLED booking is
+  // excluded even if it was never paid -- there's nothing left to pay on it. Refreshes on login/
+  // logout and on mount; doesn't live-update the instant a new booking is created elsewhere on
+  // the page (no shared bookings state exists yet -- same as reloading picks it up).
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUnpaidCount(0);
+      return;
+    }
+    getMyBookings()
+      .then((bookings) => setUnpaidCount(bookings.filter((b) => b.paymentStatus === 'UNPAID' && b.status !== 'CANCELLED').length))
+      .catch(() => setUnpaidCount(0));
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const term = searchTerm.trim();
@@ -77,7 +93,17 @@ export function Navbar() {
   const userMenuItems: MenuProps['items'] = [
     // Real bookings (see routes/client/index.tsx) -- distinct from /my-orders, which is the
     // legacy mock Cart/Checkout flow's own order history, not what "My Reservations" here means.
-    { key: 'my-bookings', label: <Link to="/my-bookings">My Reservations</Link> },
+    {
+      key: 'my-bookings',
+      label: (
+        <Link to="/my-bookings">
+          My Reservations
+          {unpaidCount > 0 && (
+            <Badge count={unpaidCount} size="small" style={{ marginLeft: 8 }} title={`${unpaidCount} unpaid reservation${unpaidCount === 1 ? '' : 's'}`} />
+          )}
+        </Link>
+      ),
+    },
     { key: 'profile', label: <Link to="/profile">My Profile</Link> },
     { type: 'divider' },
     { key: 'logout', danger: true, label: 'Logout', onClick: () => logout() },
@@ -141,7 +167,9 @@ export function Navbar() {
         {isAuthenticated ? (
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
             <Space style={{ cursor: 'pointer' }}>
-              <UserOutlined style={{ fontSize: 18 }} />
+              <Badge dot={unpaidCount > 0} title={`${unpaidCount} unpaid reservation${unpaidCount === 1 ? '' : 's'}`}>
+                <UserOutlined style={{ fontSize: 18 }} />
+              </Badge>
               {!isMobile && <span style={{ fontWeight: 600 }}>Hi, {(user?.fullName ?? user?.email)?.split(' ')[0]}</span>}
             </Space>
           </Dropdown>
