@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import { Button, Col, DatePicker, Image, Input, InputNumber, Modal, Radio, Row, Space, Steps, Typography, Upload, message } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { Button, Col, DatePicker, Image, Input, InputNumber, Radio, Row, Space, Steps, Typography, message } from 'antd';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ProductImage } from '@/components/common/ProductImage';
@@ -11,22 +10,23 @@ import { PriceDisplay } from '@/components/common/PriceDisplay';
 import { AvailabilityBadge } from '@/components/common/AvailabilityBadge';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBookedDates, getTourById } from '@/services/tourService';
-import { createBooking, submitPaymentProof } from '@/services/bookingService';
 import { listPaymentMethods } from '@/services/paymentMethodService';
-import { ALLOWED_IMAGE_TYPES, uploadPaymentProofImage } from '@/services/uploadService';
-import { formatTourDate, isBookingClosedForDate, tourAvailabilityStatus } from '@/utils/bookingUtils';
+import { isBookingClosedForDate, tourAvailabilityStatus } from '@/utils/bookingUtils';
 import { getErrorMessage } from '@/utils/errors';
-import type { Booking } from '@/types/booking';
 import type { PaymentMethod } from '@/types/paymentMethod';
 import type { Tour } from '@/types/tour';
-
-const IMAGE_ACCEPT = ALLOWED_IMAGE_TYPES.join(',');
+import type { ReservationDraft } from '@/pages/ReservationCheckout';
 
 export default function TourDetail() {
   const { id } = useParams<{ id: string }>();
   const tourId = Number(id);
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated, login } = useAuth();
+
+  // If we got here via "Edit Reservation Details" from Checkout, the draft comes back as router
+  // state -- prefill from it instead of starting over.
+  const returningDraft = (location.state as { draft?: ReservationDraft } | null)?.draft;
 
   const [tour, setTour] = useState<Tour | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,27 +35,21 @@ export default function TourDetail() {
   // Dates already CONFIRMED-booked for this tour — a tour-date is exclusive to one such booking
   // (like reserving the whole vehicle for the day), so these are simply disabled in the picker.
   const [bookedDates, setBookedDates] = useState<string[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [participants, setParticipants] = useState(1);
-  const [specialRequests, setSpecialRequests] = useState('');
+  const [selectedDate, setSelectedDate] = useState<string | null>(returningDraft?.bookingDate ?? null);
+  const [participants, setParticipants] = useState(returningDraft?.participants ?? 1);
+  const [specialRequests, setSpecialRequests] = useState(returningDraft?.specialRequests ?? '');
 
-  // Contact info — prefilled from the authenticated user, editable. No delivery address: a
-  // reservation isn't shipped anywhere, this is just how the customer and tour owner reach
-  // each other.
-  const [customerName, setCustomerName] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
+  // Contact info — prefilled from the authenticated user (or the returning draft), editable. No
+  // delivery address: a reservation isn't shipped anywhere, this is just how the customer and
+  // tour owner reach each other.
+  const [customerName, setCustomerName] = useState(returningDraft?.customerName ?? '');
+  const [customerEmail, setCustomerEmail] = useState(returningDraft?.customerEmail ?? '');
+  const [customerPhone, setCustomerPhone] = useState(returningDraft?.customerPhone ?? '');
 
   // The tour owner is determined automatically from the tour record (tour.guide) — the customer
   // never selects it.
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [paymentMethodId, setPaymentMethodId] = useState<number | null>(null);
-  const [proofUrl, setProofUrl] = useState<string | null>(null);
-  const [proofFile, setProofFile] = useState<File | null>(null);
-  const [uploadingProof, setUploadingProof] = useState(false);
-
-  const [submitting, setSubmitting] = useState(false);
-  const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
+  const [paymentMethodId, setPaymentMethodId] = useState<number | null>(returningDraft?.paymentMethodId ?? null);
 
   useEffect(() => {
     setLoading(true);
@@ -73,11 +67,14 @@ export default function TourDetail() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    setCustomerName(user?.fullName ?? '');
-    setCustomerEmail(user?.email ?? '');
+    if (!returningDraft) {
+      setCustomerName(user?.fullName ?? '');
+      setCustomerEmail(user?.email ?? '');
+    }
     listPaymentMethods()
       .then(setPaymentMethods)
-      .catch(() => undefined); // Non-fatal — the reserve button stays disabled without a selection either way.
+      .catch(() => undefined); // Non-fatal — the button stays disabled without a selection either way.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user]);
 
   if (loading) return <PageSpinner />;
@@ -98,7 +95,7 @@ export default function TourDetail() {
     return bookedDates.includes(iso) || isBookingClosedForDate(iso);
   }
 
-  const bookable =
+  const readyForCheckout =
     tour!.status === 'AVAILABLE' &&
     selectedDate !== null &&
     customerName.trim() !== '' &&
@@ -106,21 +103,7 @@ export default function TourDetail() {
     customerPhone.trim() !== '' &&
     paymentMethodId !== null;
 
-  async function handleUploadProof(file: File) {
-    setUploadingProof(true);
-    try {
-      const url = await uploadPaymentProofImage(file);
-      setProofUrl(url);
-      setProofFile(file);
-    } catch (error) {
-      message.error(getErrorMessage(error, 'Unable to upload payment proof.'));
-    } finally {
-      setUploadingProof(false);
-    }
-    return Upload.LIST_IGNORE;
-  }
-
-  async function handleReserve() {
+  function handleProceedToCheckout() {
     if (!tour || !selectedDate) {
       message.warning('Please select a tour date.');
       return;
@@ -129,43 +112,22 @@ export default function TourDetail() {
       login({ returnTo: window.location.pathname });
       return;
     }
-    if (!bookable) {
+    if (!readyForCheckout) {
       message.warning('Please fill in your contact information and select a payment method.');
       return;
     }
 
-    setSubmitting(true);
-    try {
-      const booking = await createBooking({
-        tourId: tour.id,
-        bookingDate: selectedDate,
-        participants,
-        specialRequests: specialRequests.trim() || undefined,
-        customerName: customerName.trim(),
-        customerEmail: customerEmail.trim(),
-        customerPhone: customerPhone.trim(),
-        paymentMethodId: paymentMethodId ?? undefined,
-      });
-
-      if (proofUrl && proofFile) {
-        try {
-          await submitPaymentProof(booking.id, { fileUrl: proofUrl, fileName: proofFile.name, fileType: proofFile.type });
-        } catch (error) {
-          // The booking itself already succeeded -- surface the proof-upload failure separately
-          // rather than losing the booking confirmation behind it.
-          message.error(getErrorMessage(error, 'Booking created, but payment proof failed to submit. You can retry from My Reservations.'));
-        }
-      }
-
-      setConfirmedBooking(booking);
-    } catch (error) {
-      message.error(getErrorMessage(error, 'Unable to reserve this tour.'));
-      // The date may have just been confirmed for someone else — refetch so it shows disabled.
-      setSelectedDate(null);
-      getBookedDates(tourId).then(setBookedDates);
-    } finally {
-      setSubmitting(false);
-    }
+    const draft: ReservationDraft = {
+      tourId: tour.id,
+      bookingDate: selectedDate,
+      participants,
+      specialRequests: specialRequests.trim() || undefined,
+      customerName: customerName.trim(),
+      customerEmail: customerEmail.trim(),
+      customerPhone: customerPhone.trim(),
+      paymentMethodId: paymentMethodId!,
+    };
+    navigate(`/reservations/${tour.id}/checkout`, { state: { draft } });
   }
 
   return (
@@ -223,7 +185,7 @@ export default function TourDetail() {
             <Steps
               size="small"
               direction="vertical"
-              current={4}
+              current={3}
               style={{ marginBottom: 8 }}
               items={[
                 {
@@ -303,27 +265,12 @@ export default function TourDetail() {
                       </Radio.Group>
                     ),
                 },
-                {
-                  title: 'Payment Proof (optional now, required before confirmation)',
-                  description: (
-                    <div style={{ marginBottom: 16 }}>
-                      {proofUrl && (
-                        <Image src={proofUrl} alt="Payment proof" width={120} style={{ display: 'block', marginBottom: 8, borderRadius: 4 }} />
-                      )}
-                      <Upload accept={IMAGE_ACCEPT} showUploadList={false} beforeUpload={handleUploadProof}>
-                        <Button icon={<UploadOutlined />} loading={uploadingProof}>
-                          {proofUrl ? 'Replace Payment Proof' : 'Upload Payment Proof'}
-                        </Button>
-                      </Upload>
-                    </div>
-                  ),
-                },
               ]}
             />
           )}
 
-          <Button type="primary" size="large" disabled={!bookable} loading={submitting} onClick={handleReserve}>
-            {isAuthenticated ? 'Submit Reservation' : 'Log In to Reserve'}
+          <Button type="primary" size="large" disabled={!readyForCheckout} onClick={handleProceedToCheckout}>
+            {isAuthenticated ? 'Proceed to Checkout' : 'Log In to Reserve'}
           </Button>
 
           <div style={{ marginTop: 16 }}>
@@ -333,42 +280,6 @@ export default function TourDetail() {
           </div>
         </Col>
       </Row>
-
-      <Modal open={confirmedBooking !== null} onCancel={() => setConfirmedBooking(null)} footer={null} centered>
-        {confirmedBooking && (
-          <div style={{ textAlign: 'center', padding: '16px 0' }}>
-            <ProductImage
-              fileName={tour.images[0]?.imageUrl ?? ''}
-              alt={tour.name}
-              style={{ width: 200, height: 140, objectFit: 'cover', borderRadius: 8, marginBottom: 16 }}
-            />
-            <Typography.Title level={5}>Reservation confirmed!</Typography.Title>
-            <Typography.Paragraph type="secondary">
-              Booking Reference: JDM-{confirmedBooking.id}
-              <br />
-              Tour: {confirmedBooking.tourNameSnapshot}
-              <br />
-              Tour Date: {formatTourDate(dayjs(confirmedBooking.bookingDate).format('YYYY-MM-DD'))}
-              <br />
-              Participants: {confirmedBooking.participants}
-              <br />
-              Payment Method: {confirmedBooking.paymentMethodName ?? 'Not specified'}
-              <br />
-              Status: {confirmedBooking.status}
-              <br />
-              {proofUrl
-                ? 'Your payment proof was submitted and is awaiting review.'
-                : 'You can upload payment proof any time from My Reservations.'}
-            </Typography.Paragraph>
-            <Space style={{ marginTop: 16 }}>
-              <Button onClick={() => navigate('/tours')}>Continue Browsing</Button>
-              <Button type="primary" onClick={() => navigate('/my-bookings')}>
-                View My Reservations
-              </Button>
-            </Space>
-          </div>
-        )}
-      </Modal>
     </div>
   );
 }

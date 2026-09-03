@@ -32,10 +32,11 @@ export interface CreateBookingInput {
   bookingDate: string;
   participants: number;
   specialRequests?: string;
-  customerName?: string;
-  customerEmail?: string;
-  customerPhone?: string;
-  paymentMethodId?: number;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  paymentMethodId: number;
+  paymentProof: SubmitPaymentProofInput;
 }
 
 export interface PaymentProof {

@@ -13,6 +13,13 @@ export async function listPaymentMethods(): Promise<PaymentMethod[]> {
   return res.data;
 }
 
+/** Refetches one payment method by id -- used on the checkout page so its instructions/QR image
+ *  always reflect the current backend state, not whatever was cached when the list first loaded. */
+export async function getPaymentMethodById(id: number): Promise<PaymentMethod> {
+  const res = await httpClient.get<ApiEnvelope<PaymentMethod>>(`/payment-methods/${id}`);
+  return res.data;
+}
+
 export async function createPaymentMethod(input: CreatePaymentMethodInput): Promise<PaymentMethod> {
   const res = await httpClient.post<ApiEnvelope<PaymentMethod>>('/payment-methods', input);
   return res.data;
