@@ -74,3 +74,18 @@ export interface CreateTourImageInput {
   imageUrl: string;
   sortOrder?: number;
 }
+
+/** Customer-facing contact info shown once a booking on this tour is CONFIRMED (in the
+ *  confirmation email) — deliberately separate from the guide's own account email/phone.
+ *  Fields are null until ever set. Editable by the tour's own owner or staff. */
+export interface TourContact {
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+}
+
+export interface UpdateTourContactInput {
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+}

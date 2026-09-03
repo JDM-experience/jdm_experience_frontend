@@ -26,11 +26,9 @@ function isAllowedType(type: string): type is AllowedImageType {
   return (ALLOWED_IMAGE_TYPES as readonly string[]).includes(type);
 }
 
-/**
- * Uploads one image file to Supabase Storage and resolves to its permanent CDN URL.
- * Throws an Error with a user-friendly message on a rejected type/size or a failed upload.
- */
-export async function uploadTourImage(file: File): Promise<string> {
+/** Shared by every image-upload use case (tour images, payment method images, payment proofs) --
+ *  only the signing endpoint differs; the actual browser->Supabase PUT is identical. */
+async function uploadImage(file: File, signEndpoint: string): Promise<string> {
   if (!isAllowedType(file.type)) {
     throw new Error('Unsupported image type. Use JPEG, PNG, WebP, or AVIF.');
   }
@@ -38,7 +36,7 @@ export async function uploadTourImage(file: File): Promise<string> {
     throw new Error('Image is too large (max 5 MB).');
   }
 
-  const res = await httpClient.post<ApiEnvelope<SignedUpload>>('/uploads/tour-images', {
+  const res = await httpClient.post<ApiEnvelope<SignedUpload>>(signEndpoint, {
     fileName: file.name,
     contentType: file.type,
   });
@@ -54,4 +52,22 @@ export async function uploadTourImage(file: File): Promise<string> {
   }
 
   return publicUrl;
+}
+
+/**
+ * Uploads one image file to Supabase Storage and resolves to its permanent CDN URL.
+ * Throws an Error with a user-friendly message on a rejected type/size or a failed upload.
+ */
+export async function uploadTourImage(file: File): Promise<string> {
+  return uploadImage(file, '/uploads/tour-images');
+}
+
+/** SUPER_ADMIN only (enforced server-side) -- for the admin Payment Methods page. */
+export async function uploadPaymentMethodImage(file: File): Promise<string> {
+  return uploadImage(file, '/uploads/payment-method-images');
+}
+
+/** Any authenticated user -- for a customer's payment-proof screenshot/photo at checkout. */
+export async function uploadPaymentProofImage(file: File): Promise<string> {
+  return uploadImage(file, '/uploads/payment-proofs');
 }

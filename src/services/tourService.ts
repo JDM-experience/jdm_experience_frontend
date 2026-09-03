@@ -7,10 +7,12 @@ import type {
   CreateTourInput,
   SortOrder,
   Tour,
+  TourContact,
   TourGuide,
   TourImage,
   TourSortBy,
   TourStatus,
+  UpdateTourContactInput,
   UpdateTourInput,
 } from '@/types/tour';
 
@@ -82,6 +84,18 @@ export async function addTourImage(tourId: number, input: CreateTourImageInput):
 
 export async function removeTourImage(tourId: number, imageId: number): Promise<void> {
   await httpClient.delete<ApiEnvelope<null>>(`/tours/${tourId}/images/${imageId}`);
+}
+
+/** Staff (SUPER_ADMIN/ADMIN) or the tour's own guide only -- backend enforces ownership. Fields
+ *  are null until ever set. */
+export async function getTourContact(tourId: number): Promise<TourContact> {
+  const res = await httpClient.get<ApiEnvelope<TourContact>>(`/tours/${tourId}/contact`);
+  return res.data;
+}
+
+export async function updateTourContact(tourId: number, input: UpdateTourContactInput): Promise<TourContact> {
+  const res = await httpClient.put<ApiEnvelope<TourContact>>(`/tours/${tourId}/contact`, input);
+  return res.data;
 }
 
 /** Future dates (YYYY-MM-DD) that already have a CONFIRMED booking — not bookable by anyone else.

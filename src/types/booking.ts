@@ -19,6 +19,11 @@ export interface Booking {
   unitPriceSnapshot: number;
   currency: string;
   specialRequests: string | null;
+  customerName: string | null;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  paymentMethodId: number | null;
+  paymentMethodName: string | null;
   createdAt: string;
 }
 
@@ -27,4 +32,24 @@ export interface CreateBookingInput {
   bookingDate: string;
   participants: number;
   specialRequests?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  paymentMethodId?: number;
+}
+
+export interface PaymentProof {
+  id: number;
+  bookingId: number;
+  uploadedBy: number;
+  fileUrl: string;
+  fileName: string;
+  fileType: string;
+  createdAt: string;
+}
+
+export interface SubmitPaymentProofInput {
+  fileUrl: string;
+  fileName: string;
+  fileType: string;
 }

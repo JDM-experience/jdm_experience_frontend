@@ -15,7 +15,7 @@ import {
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { CheckCircleOutlined, DeleteOutlined, EditOutlined, PictureOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, ContactsOutlined, DeleteOutlined, EditOutlined, PictureOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { ProductImage } from '@/components/common/ProductImage';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
@@ -24,15 +24,17 @@ import {
   confirmTour,
   createTour,
   deleteTour,
+  getTourContact,
   listTourGuides,
   listTours,
   removeTourImage,
   updateTour,
+  updateTourContact,
 } from '@/services/tourService';
 import { ALLOWED_IMAGE_TYPES, uploadTourImage } from '@/services/uploadService';
 import { getErrorMessage } from '@/utils/errors';
 import { formatCurrency, slugify } from '@/utils/formatters';
-import type { Tour, TourGuide, TourStatus, UpdateTourInput } from '@/types/tour';
+import type { Tour, TourContact, TourGuide, TourStatus, UpdateTourInput } from '@/types/tour';
 
 interface TourFormValues {
   name: string;
@@ -187,6 +189,12 @@ export default function AdminTours() {
 
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
+
+  const [contactForm] = Form.useForm<TourContact>();
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [contactTour, setContactTour] = useState<Tour | null>(null);
+  const [contactLoading, setContactLoading] = useState(false);
+  const [savingContact, setSavingContact] = useState(false);
 
   // No local sort needed -- listTours() with no sortBy already gets the backend's default order
   // (id desc, newest first).
@@ -359,6 +367,42 @@ export default function AdminTours() {
     setImagesModalOpen(true);
   }
 
+  // Customer-facing contact info (shown to the customer once a booking is CONFIRMED) --
+  // SUPER_ADMIN/ADMIN may manage any tour's; a Tour Guide only their own (enforced server-side).
+  function openContactModal(tour: Tour) {
+    setContactTour(tour);
+    setContactModalOpen(true);
+    setContactLoading(true);
+    getTourContact(tour.id)
+      .then((contact) =>
+        contactForm.setFieldsValue({
+          contactName: contact.contactName ?? '',
+          contactEmail: contact.contactEmail ?? '',
+          contactPhone: contact.contactPhone ?? '',
+        }),
+      )
+      .catch((error) => message.error(getErrorMessage(error, 'Unable to load contact information.')))
+      .finally(() => setContactLoading(false));
+  }
+
+  async function handleContactFinish(values: TourContact) {
+    if (!contactTour) return;
+    setSavingContact(true);
+    try {
+      await updateTourContact(contactTour.id, {
+        contactName: values.contactName?.trim() || undefined,
+        contactEmail: values.contactEmail?.trim() || undefined,
+        contactPhone: values.contactPhone?.trim() || undefined,
+      });
+      message.success('Contact information updated.');
+      setContactModalOpen(false);
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Unable to save contact information.'));
+    } finally {
+      setSavingContact(false);
+    }
+  }
+
   const columns: ColumnsType<Tour> = [
     { title: 'ID', dataIndex: 'id', width: 60 },
     {
@@ -436,6 +480,9 @@ export default function AdminTours() {
               </Popconfirm>
             )}
             {canEdit && <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(tour)} />}
+            {canEdit && (
+              <Button size="small" icon={<ContactsOutlined />} onClick={() => openContactModal(tour)} title="Customer-facing contact info" />
+            )}
             {canDelete && (
               <Popconfirm title={`Delete ${tour.name}?`} onConfirm={() => handleDelete(tour.id)}>
                 <Button size="small" danger icon={<DeleteOutlined />} />
@@ -638,6 +685,35 @@ export default function AdminTours() {
         width={560}
       >
         {imagesTour && <TourImagesEditor tour={imagesTour} onChange={() => refreshTour(imagesTour.id)} />}
+      </Modal>
+
+      <Modal
+        title={`Customer Contact${contactTour ? ` — ${contactTour.name}` : ''}`}
+        open={contactModalOpen}
+        onCancel={() => setContactModalOpen(false)}
+        onOk={() => contactForm.submit()}
+        confirmLoading={savingContact}
+        okText="Save Contact Info"
+      >
+        {contactLoading ? (
+          <PageSpinner />
+        ) : (
+          <Form<TourContact> form={contactForm} layout="vertical" onFinish={handleContactFinish}>
+            <Typography.Paragraph type="secondary" style={{ marginTop: -8, fontSize: 12 }}>
+              Shown to the customer once their booking on this tour is confirmed — not necessarily
+              the same as your own account email/phone.
+            </Typography.Paragraph>
+            <Form.Item label="Contact Name" name="contactName">
+              <Input placeholder="e.g. John Smith" />
+            </Form.Item>
+            <Form.Item label="Contact Email" name="contactEmail" rules={[{ type: 'email', message: 'Enter a valid email address.' }]}>
+              <Input placeholder="john@example.com" />
+            </Form.Item>
+            <Form.Item label="Contact Phone" name="contactPhone">
+              <Input placeholder="+81-90-1234-5678" />
+            </Form.Item>
+          </Form>
+        )}
       </Modal>
     </div>
   );
