@@ -75,7 +75,9 @@ export function Navbar() {
   }));
 
   const userMenuItems: MenuProps['items'] = [
-    { key: 'my-orders', label: <Link to="/my-orders">My Reservations</Link> },
+    // Real bookings (see routes/client/index.tsx) -- distinct from /my-orders, which is the
+    // legacy mock Cart/Checkout flow's own order history, not what "My Reservations" here means.
+    { key: 'my-bookings', label: <Link to="/my-bookings">My Reservations</Link> },
     { key: 'profile', label: <Link to="/profile">My Profile</Link> },
     { type: 'divider' },
     { key: 'logout', danger: true, label: 'Logout', onClick: () => logout() },
