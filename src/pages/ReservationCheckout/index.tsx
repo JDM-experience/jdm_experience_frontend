@@ -114,7 +114,7 @@ export default function ReservationCheckout() {
         `Reservation JDM-${booking.id} submitted. Our team will verify your payment and update your reservation status.`,
         6,
       );
-      navigate('/my-bookings');
+      navigate('/cart');
     } catch (error) {
       message.error(getErrorMessage(error, 'Unable to submit this reservation.'));
       // The selected payment method may have just been disabled, or the date taken -- refresh

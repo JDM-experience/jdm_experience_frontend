@@ -100,12 +100,12 @@ export function Navbar() {
   }));
 
   const userMenuItems: MenuProps['items'] = [
-    // Real bookings (see routes/client/index.tsx) -- distinct from /my-orders, which is the
-    // legacy mock Cart/Checkout flow's own order history, not what "My Reservations" here means.
+    // Real bookings (see routes/client/index.tsx), served at /cart -- reusing the old cart path/
+    // name, but backed by real Booking data now, not the legacy mock Cart/Checkout system.
     {
       key: 'my-bookings',
       label: (
-        <Link to="/my-bookings">
+        <Link to="/cart">
           My Reservations
           {unpaidCount > 0 && (
             <Badge count={unpaidCount} size="small" style={{ marginLeft: 8 }} title={`${unpaidCount} unpaid reservation${unpaidCount === 1 ? '' : 's'}`} />
@@ -183,9 +183,9 @@ export function Navbar() {
 
           {isAuthenticated && (
             // "Your Reservation" -- "My Reservations" is already the label inside the profile
-            // dropdown below; this is the same real /my-bookings page, just reachable in one
-            // click from the header the way the old (legacy, now-removed) cart icon used to be.
-            <Link to="/my-bookings" aria-label="Your Reservation">
+            // dropdown below; this is the same real /cart page, just reachable in one click from
+            // the header the way the old cart icon used to work.
+            <Link to="/cart" aria-label="Your Reservation">
               <Button
                 type="text"
                 shape="circle"

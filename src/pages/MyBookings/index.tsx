@@ -54,8 +54,8 @@ const EMPTY_FILTER_MESSAGE: Record<FilterKey, string> = {
   CANCELLED: 'No cancelled trips.',
 };
 
-/** Real bookings made via the current Tour/booking flow -- distinct from /my-orders, which
- *  still shows the legacy mock Cart/Checkout orders. */
+/** Real bookings made via the current Tour/booking flow. Served at /cart -- reusing the old
+ *  cart route/name, but backed by real Booking data, not the removed legacy mock system. */
 export default function MyBookings() {
   const { isAuthenticated, isInitializing } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
