@@ -1,11 +1,7 @@
 // Calls the real Node.js backend directly, same convention as adminUserService.ts.
 import { httpClient } from './httpClient';
+import type { ApiEnvelope } from '@/types/api';
 import type { CreatePaymentMethodInput, PaymentMethod, UpdatePaymentMethodInput } from '@/types/paymentMethod';
-
-interface ApiEnvelope<T> {
-  success: boolean;
-  data: T;
-}
 
 /** Any authenticated user -- a CUSTOMER gets active-only, staff get everything (see backend). */
 export async function listPaymentMethods(): Promise<PaymentMethod[]> {

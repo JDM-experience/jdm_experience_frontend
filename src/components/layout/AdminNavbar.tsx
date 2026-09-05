@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Layout, Menu, Space, Typography } from 'antd';
 import { LogoutOutlined } from '@ant-design/icons';
@@ -16,15 +17,22 @@ export function AdminNavbar() {
   const { admin, logout } = useAdminAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const isSuperAdmin = admin?.role === 'SUPER_ADMIN';
+  const isStaff = isSuperAdmin || admin?.role === 'ADMIN';
 
-  const navLinks = [
-    ...BASE_NAV_LINKS,
-    ...(admin?.role === 'SUPER_ADMIN' || admin?.role === 'ADMIN' ? [{ key: '/admin/users', label: 'Users' }] : []),
-    ...(admin?.role === 'SUPER_ADMIN' || admin?.role === 'ADMIN'
-      ? [{ key: '/admin/settings', label: 'Website Settings' }]
-      : []),
-    ...(admin?.role === 'SUPER_ADMIN' ? [{ key: '/admin/payment-methods', label: 'Payment Methods' }] : []),
-  ];
+  const navLinks = useMemo(
+    () => [
+      ...BASE_NAV_LINKS,
+      ...(isStaff ? [{ key: '/admin/users', label: 'Users' }, { key: '/admin/settings', label: 'Website Settings' }] : []),
+      ...(isSuperAdmin ? [{ key: '/admin/payment-methods', label: 'Payment Methods' }] : []),
+    ],
+    [isStaff, isSuperAdmin],
+  );
+
+  const menuItems = useMemo(
+    () => navLinks.map((link) => ({ key: link.key, label: <Link to={link.key}>{link.label}</Link> })),
+    [navLinks],
+  );
 
   const selectedKey = navLinks.find((link) => location.pathname.startsWith(link.key))?.key;
 
@@ -47,7 +55,7 @@ export function AdminNavbar() {
         theme="dark"
         mode="horizontal"
         selectedKeys={selectedKey ? [selectedKey] : []}
-        items={navLinks.map((link) => ({ key: link.key, label: <Link to={link.key}>{link.label}</Link> }))}
+        items={menuItems}
         style={{ flex: 1, minWidth: 0, background: 'transparent' }}
       />
 

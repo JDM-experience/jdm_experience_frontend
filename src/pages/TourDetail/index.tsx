@@ -52,17 +52,31 @@ export default function TourDetail() {
   const [paymentMethodId, setPaymentMethodId] = useState<number | null>(returningDraft?.paymentMethodId ?? null);
 
   useEffect(() => {
+    // tourId can change without unmounting this component (e.g. navigating between two tour
+    // detail pages) -- a cancellation flag stops a slower, stale fetch from overwriting the
+    // newer tour's data.
+    let cancelled = false;
     setLoading(true);
     getTourById(tourId)
       .then((t) => {
+        if (cancelled) return;
         setTour(t);
         if (t) setMainImage(t.images[0]?.imageUrl ?? '');
       })
-      .catch((error) => message.error(getErrorMessage(error, 'Unable to load this tour.')))
-      .finally(() => setLoading(false));
+      .catch((error) => {
+        if (!cancelled) message.error(getErrorMessage(error, 'Unable to load this tour.'));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
     getBookedDates(tourId)
-      .then(setBookedDates)
+      .then((dates) => {
+        if (!cancelled) setBookedDates(dates);
+      })
       .catch(() => undefined); // Non-fatal — worst case a taken date shows selectable and the backend rejects it.
+    return () => {
+      cancelled = true;
+    };
   }, [tourId]);
 
   useEffect(() => {
@@ -137,7 +151,9 @@ export default function TourDetail() {
           <Image
             src={mainImage}
             alt={tour.name}
-            style={{ width: '100%', maxHeight: 520, objectFit: 'cover', borderRadius: 8 }}
+            width="100%"
+            height={480}
+            style={{ objectFit: 'cover', borderRadius: 8 }}
           />
           <Space style={{ marginTop: 16 }} wrap>
             {gallery.map((img) => (

@@ -3,12 +3,8 @@
 // Checkout flow): a real booking is created directly, one tour at a time, matching the real
 // backend's model -- there is no cart step here.
 import { httpClient } from './httpClient';
+import type { ApiEnvelope } from '@/types/api';
 import type { Booking, BookingStatus, CreateBookingInput, PaymentProof, SubmitPaymentProofInput } from '@/types/booking';
-
-interface ApiEnvelope<T> {
-  success: boolean;
-  data: T;
-}
 
 export async function createBooking(input: CreateBookingInput): Promise<Booking> {
   const res = await httpClient.post<ApiEnvelope<Booking>>('/bookings', input);

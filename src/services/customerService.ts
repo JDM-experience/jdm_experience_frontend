@@ -4,12 +4,8 @@
 // see deactivateCustomer below.
 import { httpClient } from './httpClient';
 import { ApiError } from '@/types/api';
+import type { ApiEnvelope } from '@/types/api';
 import type { Customer, UpdateCustomerProfileInput } from '@/types/customer';
-
-interface ApiEnvelope<T> {
-  success: boolean;
-  data: T;
-}
 
 export async function getCustomers(): Promise<Customer[]> {
   const res = await httpClient.get<ApiEnvelope<Customer[]>>('/customers');

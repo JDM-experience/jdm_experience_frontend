@@ -57,14 +57,25 @@ export default function ReservationCheckout() {
       setLoading(false);
       return;
     }
+    // draft can change (e.g. "Edit Reservation Details" -> back here with a new draft) without
+    // unmounting -- guard against a slower, stale fetch overwriting the newer draft's data.
+    let cancelled = false;
     setLoading(true);
     Promise.all([getTourById(draft.tourId), getPaymentMethodById(draft.paymentMethodId)])
       .then(([t, method]) => {
+        if (cancelled) return;
         setTour(t);
         setPaymentMethod(method);
       })
-      .catch((error) => setLoadError(getErrorMessage(error, 'Unable to load your reservation details.')))
-      .finally(() => setLoading(false));
+      .catch((error) => {
+        if (!cancelled) setLoadError(getErrorMessage(error, 'Unable to load your reservation details.'));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft?.tourId, draft?.paymentMethodId]);
 

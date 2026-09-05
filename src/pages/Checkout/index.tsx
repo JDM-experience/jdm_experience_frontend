@@ -21,9 +21,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { createOrder } from '@/services/orderService';
 import { formatCurrency } from '@/utils/formatters';
-import { formatTourDate, formatTourTime } from '@/utils/bookingUtils';
+import { applyPromoCode, formatTourDate, formatTourTime } from '@/utils/bookingUtils';
 import { getErrorMessage } from '@/utils/errors';
-import { PROMO_CODE, PROMO_DISCOUNT_RATE } from '@/constants';
+import { PROMO_CODE } from '@/constants';
 import type { PaymentMethod } from '@/types/order';
 
 interface CheckoutFormValues {
@@ -36,6 +36,14 @@ interface CheckoutFormValues {
   cardNumber?: string;
   cardExpiry?: string;
   cardCvv?: string;
+}
+
+function formatCardNumber(value: string): string {
+  return value
+    .replace(/\D/g, '')
+    .replace(/(.{4})/g, '$1 ')
+    .trim()
+    .slice(0, 19);
 }
 
 export default function Checkout() {
@@ -65,20 +73,12 @@ export default function Checkout() {
       return;
     }
     if (code === PROMO_CODE) {
-      setPreviewTotal(total * (1 - PROMO_DISCOUNT_RATE));
+      setPreviewTotal(applyPromoCode(total, code));
       setPromoMessage({ type: 'success', text: 'Promo applied! 10% discount has been applied.' });
     } else {
       setPromoMessage({ type: 'error', text: 'Invalid promo code.' });
       setPreviewTotal(null);
     }
-  }
-
-  function formatCardNumber(value: string): string {
-    return value
-      .replace(/\D/g, '')
-      .replace(/(.{4})/g, '$1 ')
-      .trim()
-      .slice(0, 19);
   }
 
   async function handleFinish(values: CheckoutFormValues) {

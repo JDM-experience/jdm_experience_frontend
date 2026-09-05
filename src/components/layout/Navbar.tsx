@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AutoComplete, Avatar, Badge, Button, Drawer, Dropdown, Grid, Input, Layout, Menu, Space } from 'antd';
 import type { MenuProps } from 'antd';
 import { CalendarOutlined, MenuOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
@@ -27,6 +27,7 @@ export function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
   const { count } = useCart();
   const navigate = useNavigate();
+  const location = useLocation();
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
 
@@ -68,6 +69,16 @@ export function Navbar() {
     }, 250);
     return () => clearTimeout(handle);
   }, [searchTerm]);
+
+  const navMenuItems = useMemo(
+    () => NAV_LINKS.map((link) => ({ key: link.key, label: <Link to={link.key}>{link.label}</Link> })),
+    [],
+  );
+
+  const selectedNavKey = useMemo(() => {
+    const match = [...NAV_LINKS].reverse().find((link) => (link.key === '/' ? location.pathname === '/' : location.pathname.startsWith(link.key)));
+    return match ? [match.key] : [];
+  }, [location.pathname]);
 
   const goToSearch = (term: string) => {
     if (!term.trim()) return;
@@ -118,88 +129,97 @@ export function Navbar() {
         zIndex: 100,
         width: '100%',
         background: '#fff',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 16,
-        paddingInline: 24,
-        height: 64,
+        borderBottom: '1px solid #f0f0f0',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+        paddingInline: 0,
+        height: 72,
       }}
     >
-      <Link to="/" style={{ fontWeight: 700, fontSize: 18, color: '#000', whiteSpace: 'nowrap' }}>
-        Japan JDM Experience
-      </Link>
-
-      {!isMobile && (
-        <Menu
-          mode="horizontal"
-          selectable={false}
-          items={NAV_LINKS.map((link) => ({ key: link.key, label: <Link to={link.key}>{link.label}</Link> }))}
-          style={{ flex: 1, justifyContent: 'center', borderBottom: 'none', minWidth: 0 }}
-        />
-      )}
-
-      <Space size="middle" style={{ marginLeft: isMobile ? 'auto' : 0 }}>
-        {!isMobile && (
-          <AutoComplete
-            options={searchOptions}
-            value={searchTerm}
-            onChange={setSearchTerm}
-            onSelect={(value) => goToSearch(value)}
-            style={{ width: screens.lg ? 220 : 160 }}
-            popupMatchSelectWidth={320}
-          >
-            <Input.Search
-              placeholder="Search tours..."
-              onSearch={goToSearch}
-              allowClear
-            />
-          </AutoComplete>
-        )}
-
-        <Link to="/cart" aria-label="Reservations">
-          <Badge count={count} size="small">
-            <CalendarOutlined style={{ fontSize: 20, color: '#000' }} />
-          </Badge>
+      <div
+        style={{
+          maxWidth: 1280,
+          height: '100%',
+          margin: '0 auto',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 24,
+          paddingInline: 24,
+        }}
+      >
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          <img src="/images/jdm-logo.png" alt="JDM Experience" style={{ height: 52, width: 'auto' }} />
         </Link>
 
-        {isAuthenticated ? (
-          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-            <Space style={{ cursor: 'pointer' }}>
-              <Badge dot={unpaidCount > 0} title={`${unpaidCount} unpaid reservation${unpaidCount === 1 ? '' : 's'}`}>
-                <UserOutlined style={{ fontSize: 18 }} />
-              </Badge>
-              {!isMobile && <span style={{ fontWeight: 600 }}>Hi, {(user?.fullName ?? user?.email)?.split(' ')[0]}</span>}
-            </Space>
-          </Dropdown>
-        ) : (
-          <Link to="/login" aria-label="Login">
-            <UserOutlined style={{ fontSize: 18, color: '#000' }} />
-          </Link>
+        {!isMobile && (
+          <Menu
+            mode="horizontal"
+            selectable
+            selectedKeys={selectedNavKey}
+            items={navMenuItems}
+            style={{ flex: 1, justifyContent: 'center', borderBottom: 'none', minWidth: 0, fontWeight: 500 }}
+          />
         )}
 
-        {isMobile && (
-          <Button type="text" icon={<MenuOutlined />} onClick={() => setDrawerOpen(true)} aria-label="Open menu" />
-        )}
-      </Space>
+        <Space size="large" align="center" style={{ marginLeft: isMobile ? 'auto' : 0 }}>
+          {!isMobile && (
+            <AutoComplete
+              className="jdm-nav-search"
+              options={searchOptions}
+              value={searchTerm}
+              onChange={setSearchTerm}
+              onSelect={(value) => goToSearch(value)}
+              style={{ width: screens.lg ? 260 : 180 }}
+              popupMatchSelectWidth={320}
+            >
+              <Input
+                variant="filled"
+                size="small"
+                placeholder="Search tours..."
+                prefix={<SearchOutlined style={{ color: 'rgba(0,0,0,0.35)' }} />}
+                allowClear
+                onPressEnter={(e) => goToSearch((e.target as HTMLInputElement).value)}
+              />
+            </AutoComplete>
+          )}
+
+          <Link to="/cart" aria-label="Reservations">
+            <Button type="text" shape="circle" icon={<Badge count={count} size="small"><CalendarOutlined style={{ fontSize: 18, color: '#000' }} /></Badge>} />
+          </Link>
+
+          {isAuthenticated ? (
+            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+              <Space style={{ cursor: 'pointer' }} size={8}>
+                <Badge dot={unpaidCount > 0} title={`${unpaidCount} unpaid reservation${unpaidCount === 1 ? '' : 's'}`}>
+                  <Avatar size={32} icon={<UserOutlined />} style={{ background: '#000' }} />
+                </Badge>
+                {!isMobile && <span style={{ fontWeight: 600 }}>Hi, {(user?.fullName ?? user?.email)?.split(' ')[0]}</span>}
+              </Space>
+            </Dropdown>
+          ) : (
+            <Link to="/login" aria-label="Login">
+              <Button type="text" shape="circle" icon={<UserOutlined style={{ fontSize: 18, color: '#000' }} />} />
+            </Link>
+          )}
+
+          {isMobile && (
+            <Button type="text" shape="circle" icon={<MenuOutlined />} onClick={() => setDrawerOpen(true)} aria-label="Open menu" />
+          )}
+        </Space>
+      </div>
 
       <Drawer title="Menu" placement="right" onClose={() => setDrawerOpen(false)} open={drawerOpen}>
         <Input.Search
+          variant="filled"
           placeholder="Search tours..."
           onSearch={(value) => {
             goToSearch(value);
             setDrawerOpen(false);
           }}
           style={{ marginBottom: 16 }}
-          prefix={<SearchOutlined />}
+          prefix={<SearchOutlined style={{ color: 'rgba(0,0,0,0.35)' }} />}
         />
-        <Menu
-          mode="vertical"
-          selectable={false}
-          onClick={() => setDrawerOpen(false)}
-          items={NAV_LINKS.map((link) => ({ key: link.key, label: <Link to={link.key}>{link.label}</Link> }))}
-        />
+        <Menu mode="vertical" selectable selectedKeys={selectedNavKey} onClick={() => setDrawerOpen(false)} items={navMenuItems} />
       </Drawer>
     </Layout.Header>
   );

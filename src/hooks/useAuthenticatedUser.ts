@@ -1,12 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { httpClient, setAccessTokenGetter } from '@/services/httpClient';
+import type { ApiEnvelope } from '@/types/api';
 import type { User } from '@/types/user';
-
-interface ApiEnvelope<T> {
-  success: boolean;
-  data: T;
-}
 
 /**
  * Bridges the Auth0 session to the local backend's `users` row. Shared by AuthContext and

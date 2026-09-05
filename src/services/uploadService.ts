@@ -3,6 +3,7 @@
 // never through the API. The returned `publicUrl` is a CDN URL — pass it to createTour({ images })
 // or addTourImage({ imageUrl }).
 import { httpClient } from './httpClient';
+import type { ApiEnvelope } from '@/types/api';
 
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'] as const;
 export type AllowedImageType = (typeof ALLOWED_IMAGE_TYPES)[number];
@@ -15,11 +16,6 @@ interface SignedUpload {
   signedUrl: string;
   token: string;
   publicUrl: string;
-}
-
-interface ApiEnvelope<T> {
-  success: boolean;
-  data: T;
 }
 
 function isAllowedType(type: string): type is AllowedImageType {

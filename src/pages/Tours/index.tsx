@@ -37,12 +37,24 @@ export default function Tours() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // search/sort can change again before the previous request resolves (e.g. two quick
+    // searches) -- guard against the older response overwriting the newer one.
+    let cancelled = false;
     setLoading(true);
     const { sortBy, sortOrder } = SORT_TO_PARAMS[sort || 'az'];
     listTours({ status: 'AVAILABLE', search: search || undefined, sortBy, sortOrder })
-      .then(setTours)
-      .catch((error) => message.error(getErrorMessage(error, 'Unable to load tours.')))
-      .finally(() => setLoading(false));
+      .then((results) => {
+        if (!cancelled) setTours(results);
+      })
+      .catch((error) => {
+        if (!cancelled) message.error(getErrorMessage(error, 'Unable to load tours.'));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [search, sort]);
 
   function updateParam(key: string, value: string) {

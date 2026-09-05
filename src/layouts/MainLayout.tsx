@@ -7,7 +7,7 @@ export function MainLayout() {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Navbar />
-      <Layout.Content style={{ paddingTop: 64 }}>
+      <Layout.Content style={{ paddingTop: 72 }}>
         <Outlet />
       </Layout.Content>
       <Footer />

@@ -2,6 +2,7 @@
 // being migrated off services/mock/productService onto the live API.
 import { httpClient } from './httpClient';
 import { ApiError } from '@/types/api';
+import type { ApiEnvelope } from '@/types/api';
 import type {
   CreateTourImageInput,
   CreateTourInput,
@@ -15,11 +16,6 @@ import type {
   UpdateTourContactInput,
   UpdateTourInput,
 } from '@/types/tour';
-
-interface ApiEnvelope<T> {
-  success: boolean;
-  data: T;
-}
 
 export interface ListToursFilters {
   status?: TourStatus;

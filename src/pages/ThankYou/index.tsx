@@ -12,6 +12,21 @@ import { formatCurrency, formatDateTime } from '@/utils/formatters';
 import { formatTourDate, formatTourTime } from '@/utils/bookingUtils';
 import type { Order, OrderItem } from '@/types/order';
 
+// Static — doesn't depend on component state/props, so it's defined once at module scope
+// instead of being rebuilt on every render.
+const columns: ColumnsType<OrderItem> = [
+  { title: 'Tour Name', dataIndex: 'productName' },
+  { title: 'Tour Date', dataIndex: 'date', render: formatTourDate },
+  { title: 'Tour Time', dataIndex: 'time', render: formatTourTime },
+  { title: 'Quantity', dataIndex: 'quantity' },
+  { title: 'Tour Price', dataIndex: 'price', render: (price: number) => formatCurrency(price) },
+  {
+    title: 'Total Price',
+    key: 'subtotal',
+    render: (_, item) => formatCurrency(item.price),
+  },
+];
+
 export default function ThankYou() {
   const { orderId } = useParams<{ orderId: string }>();
   const { isAuthenticated } = useAuth();
@@ -19,9 +34,19 @@ export default function ThankYou() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // orderId can change without unmounting -- guard against a slower, stale fetch overwriting
+    // the newer order's data.
+    let cancelled = false;
     getOrderById(Number(orderId))
-      .then(setOrder)
-      .finally(() => setLoading(false));
+      .then((result) => {
+        if (!cancelled) setOrder(result);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [orderId]);
 
   if (loading) return <PageSpinner />;
@@ -35,19 +60,6 @@ export default function ThankYou() {
 
   const computedTotal = order.items.reduce((sum, item) => sum + item.price, 0);
   const savings = computedTotal - order.totalAmount;
-
-  const columns: ColumnsType<OrderItem> = [
-    { title: 'Tour Name', dataIndex: 'productName' },
-    { title: 'Tour Date', dataIndex: 'date', render: formatTourDate },
-    { title: 'Tour Time', dataIndex: 'time', render: formatTourTime },
-    { title: 'Quantity', dataIndex: 'quantity' },
-    { title: 'Tour Price', dataIndex: 'price', render: (price: number) => formatCurrency(price) },
-    {
-      title: 'Total Price',
-      key: 'subtotal',
-      render: (_, item) => formatCurrency(item.price),
-    },
-  ];
 
   return (
     <div style={{ maxWidth: 800, margin: '80px auto', padding: '0 24px 48px' }}>

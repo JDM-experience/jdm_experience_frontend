@@ -3,12 +3,8 @@
 // inherently needs the live database (creating a real login-capable account); there's no
 // meaningful mock to fall back to, and USE_MOCKS doesn't apply here.
 import { httpClient } from './httpClient';
+import type { ApiEnvelope } from '@/types/api';
 import type { CreateManagedUserInput, ManagedUser, UpdateManagedUserInput } from '@/types/managedUser';
-
-interface ApiEnvelope<T> {
-  success: boolean;
-  data: T;
-}
 
 export async function listUsers(): Promise<ManagedUser[]> {
   const res = await httpClient.get<ApiEnvelope<ManagedUser[]>>('/users');
