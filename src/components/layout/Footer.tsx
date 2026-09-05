@@ -1,9 +1,25 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Layout, Typography } from 'antd';
+import { Layout, Space, Typography } from 'antd';
+import { getSocialLinks } from '@/services/settingsService';
+import { SOCIAL_ICONS, visibleSocialLinks } from '@/utils/socialIcons';
+import type { SocialLink } from '@/types/settings';
 
 const { Text } = Typography;
 
 export function Footer() {
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+
+  useEffect(() => {
+    getSocialLinks()
+      .then(setSocialLinks)
+      .catch(() => {
+        // Social icons are supplementary -- fail quietly and just show none.
+      });
+  }, []);
+
+  const visibleLinks = visibleSocialLinks(socialLinks);
+
   return (
     <Layout.Footer style={{ background: '#111', color: '#fff', padding: '32px 24px' }}>
       <div
@@ -25,16 +41,34 @@ export function Footer() {
             meetups to Tokyo night drives.
           </Text>
         </div>
-        <div style={{ display: 'flex', gap: 24 }}>
-          <Link to="/about" style={{ color: '#fff' }}>
-            About
-          </Link>
-          <Link to="/contact" style={{ color: '#fff' }}>
-            Contact
-          </Link>
-          <Link to="/policy" style={{ color: '#fff' }}>
-            Policies
-          </Link>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 16 }}>
+          <div style={{ display: 'flex', gap: 24 }}>
+            <Link to="/about" style={{ color: '#fff' }}>
+              About
+            </Link>
+            <Link to="/contact" style={{ color: '#fff' }}>
+              Contact
+            </Link>
+            <Link to="/policy" style={{ color: '#fff' }}>
+              Policies
+            </Link>
+          </div>
+
+          {visibleLinks.length > 0 && (
+            <Space size="large">
+              {visibleLinks.map((link) => (
+                <a
+                  key={link.platform}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: '#fff', fontSize: 20 }}
+                >
+                  {SOCIAL_ICONS[link.platform]}
+                </a>
+              ))}
+            </Space>
+          )}
         </div>
       </div>
     </Layout.Footer>

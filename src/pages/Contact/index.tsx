@@ -1,25 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, Col, Form, Input, Row, Space, Spin, Typography } from 'antd';
-import {
-  ClockCircleOutlined,
-  EnvironmentOutlined,
-  FacebookOutlined,
-  InstagramOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  TikTokOutlined,
-} from '@ant-design/icons';
+import { ClockCircleOutlined, EnvironmentOutlined, MailOutlined, PhoneOutlined } from '@ant-design/icons';
 import { createMessage } from '@/services/messageService';
 import { getContactSettings, getSocialLinks } from '@/services/settingsService';
 import { getErrorMessage } from '@/utils/errors';
+import { SOCIAL_ICONS, visibleSocialLinks } from '@/utils/socialIcons';
 import type { CreateContactMessageInput } from '@/types/contactMessage';
-import type { ContactSettings, SocialLink, SocialPlatform } from '@/types/settings';
-
-const SOCIAL_ICONS: Record<SocialPlatform, React.ReactNode> = {
-  FACEBOOK: <FacebookOutlined style={{ fontSize: 24 }} />,
-  INSTAGRAM: <InstagramOutlined style={{ fontSize: 24 }} />,
-  TIKTOK: <TikTokOutlined style={{ fontSize: 24 }} />,
-};
+import type { ContactSettings, SocialLink } from '@/types/settings';
 
 export default function Contact() {
   const [form] = Form.useForm<CreateContactMessageInput>();
@@ -56,7 +43,7 @@ export default function Contact() {
     }
   }
 
-  const visibleSocialLinks = socialLinks.filter((link) => link.enabled && link.url.trim().length > 0);
+  const visibleLinks = visibleSocialLinks(socialLinks);
 
   return (
     <div style={{ maxWidth: 1140, margin: '0 auto', padding: '64px 24px' }}>
@@ -123,11 +110,17 @@ export default function Contact() {
                 )}
               </Space>
 
-              {visibleSocialLinks.length > 0 && (
+              {visibleLinks.length > 0 && (
                 <div style={{ marginTop: 24 }}>
                   <Space size="large">
-                    {visibleSocialLinks.map((link) => (
-                      <a key={link.platform} href={link.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>
+                    {visibleLinks.map((link) => (
+                      <a
+                        key={link.platform}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: 'inherit', fontSize: 24 }}
+                      >
                         {SOCIAL_ICONS[link.platform]}
                       </a>
                     ))}

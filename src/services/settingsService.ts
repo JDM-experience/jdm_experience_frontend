@@ -3,7 +3,17 @@
 // this to be live: hardcoding this content in React is exactly what this feature replaces.
 import { httpClient } from './httpClient';
 import type { ApiEnvelope } from '@/types/api';
-import type { ContactSettings, SocialLink, SocialPlatform, UpdateContactSettingsInput } from '@/types/settings';
+import type {
+  AboutContent,
+  ContactSettings,
+  PolicyPage,
+  PolicyType,
+  SocialLink,
+  SocialPlatform,
+  UpdateAboutContentInput,
+  UpdateContactSettingsInput,
+  UpdatePolicyInput,
+} from '@/types/settings';
 
 export async function getContactSettings(): Promise<ContactSettings | null> {
   const res = await httpClient.get<ApiEnvelope<ContactSettings | null>>('/settings/contact');
@@ -36,5 +46,36 @@ export async function saveSocialLink(
     return res.data;
   }
   const res = await httpClient.post<ApiEnvelope<SocialLink>>('/settings/social-media', { platform, ...input });
+  return res.data;
+}
+
+export async function removeSocialLink(id: number): Promise<void> {
+  await httpClient.delete<ApiEnvelope<null>>(`/settings/social-media/${id}`);
+}
+
+export async function getAboutContent(): Promise<AboutContent | null> {
+  const res = await httpClient.get<ApiEnvelope<AboutContent | null>>('/settings/about');
+  return res.data;
+}
+
+export async function updateAboutContent(input: UpdateAboutContentInput): Promise<AboutContent | null> {
+  const res = await httpClient.put<ApiEnvelope<AboutContent | null>>('/settings/about', input);
+  return res.data;
+}
+
+/** Public: only policy types with actual content configured. */
+export async function getPolicies(): Promise<PolicyPage[]> {
+  const res = await httpClient.get<ApiEnvelope<PolicyPage[]>>('/settings/policies');
+  return res.data;
+}
+
+/** Staff-only: one policy type for the editor, even if it has no content yet. */
+export async function getPolicyForAdmin(type: PolicyType): Promise<PolicyPage> {
+  const res = await httpClient.get<ApiEnvelope<PolicyPage>>(`/settings/policies/${type}/admin`);
+  return res.data;
+}
+
+export async function updatePolicy(type: PolicyType, input: UpdatePolicyInput): Promise<PolicyPage> {
+  const res = await httpClient.put<ApiEnvelope<PolicyPage>>(`/settings/policies/${type}`, input);
   return res.data;
 }

@@ -29,6 +29,30 @@ a {
   box-shadow: none !important;
 }
 
+/* Admin-authored rich text (About Us / Policy content) -- default browser list styling is
+   suppressed by our CSS reset elsewhere, so restore it just within rendered content. */
+.jdm-rich-text-content ul,
+.jdm-rich-text-content ol,
+.jdm-rich-text-editor ul,
+.jdm-rich-text-editor ol {
+  padding-left: 24px;
+  margin: 8px 0;
+}
+.jdm-rich-text-content h2,
+.jdm-rich-text-editor h2 {
+  font-size: 22px;
+  margin: 16px 0 8px;
+}
+.jdm-rich-text-content h3,
+.jdm-rich-text-editor h3 {
+  font-size: 18px;
+  margin: 12px 0 8px;
+}
+.jdm-rich-text-content p,
+.jdm-rich-text-editor p {
+  margin: 0 0 12px;
+}
+
 @media print {
   header,
   .ant-layout-header,

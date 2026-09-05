@@ -1,44 +1,24 @@
+import { useEffect, useState } from 'react';
 import { Typography } from 'antd';
+import { PageSpinner } from '@/components/common/PageSpinner';
+import { getPolicies } from '@/services/settingsService';
+import { sanitizeHtml } from '@/utils/sanitizeHtml';
+import type { PolicyPage as PolicyPageData } from '@/types/settings';
 
-const SECTIONS: { title: string; bullets: string[]; note?: string }[] = [
-  {
-    title: 'Customer Conduct Policy',
-    bullets: [
-      'Customers must treat our drivers, staff, and vehicles with respect.',
-      'Smoking, illegal substances, and unlawful behavior inside our vehicles are strictly prohibited.',
-      'Any damage caused by a customer may result in additional charges.',
-    ],
-  },
-  {
-    title: 'Booking Policy',
-    bullets: [
-      'Reservations are accepted on a first-come, first-served basis.',
-      'A booking is confirmed only after successful payment.',
-      'Same-day bookings are accepted only before 5:00 PM Japan Standard Time (JST).',
-      'Bookings made after the daily cutoff must be scheduled for another available date.',
-    ],
-  },
-  {
-    title: 'Website Terms & Privacy',
-    bullets: [
-      'By using this website, you agree to our terms and policies.',
-      'Your personal information is collected only to process bookings and provide customer support.',
-      'We do not sell or share your personal information with unauthorized third parties.',
-    ],
-    note: 'Cookies may be used to improve your browsing experience. You can manage or disable cookies through your browser settings.',
-  },
-  {
-    title: 'Cancellation & Refund Policy',
-    bullets: [
-      'Cancellation requests should be made as early as possible.',
-      'Refund eligibility depends on the cancellation circumstances and our refund policy.',
-      'No-shows may not be eligible for a refund.',
-    ],
-    note: 'Approved refunds will be processed using the original payment method whenever possible.',
-  },
-];
-
+/** Content is edited from admin Website Settings, not hardcoded here -- see PoliciesTab in
+ *  src/pages/admin/Settings. A policy type nobody has written yet is simply omitted (the backend
+ *  only returns configured ones), matching how an unset social link hides its icon. */
 export default function Policy() {
+  const [policies, setPolicies] = useState<PolicyPageData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getPolicies()
+      .then(setPolicies)
+      .catch(() => setPolicies([]))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <>
       <div style={{ background: '#111', color: '#fff', padding: '64px 24px', textAlign: 'center' }}>
@@ -51,17 +31,20 @@ export default function Policy() {
       </div>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '48px 24px' }}>
-        {SECTIONS.map((section) => (
-          <div key={section.title} style={{ marginBottom: 32 }}>
-            <Typography.Title level={4}>{section.title}</Typography.Title>
-            <ul>
-              {section.bullets.map((bullet) => (
-                <li key={bullet}>{bullet}</li>
-              ))}
-            </ul>
-            {section.note && <Typography.Paragraph type="secondary">{section.note}</Typography.Paragraph>}
-          </div>
-        ))}
+        {loading ? (
+          <PageSpinner />
+        ) : policies.length === 0 ? (
+          <Typography.Paragraph type="secondary" style={{ textAlign: 'center' }}>
+            Content coming soon.
+          </Typography.Paragraph>
+        ) : (
+          policies.map((policy) => (
+            <div key={policy.type} style={{ marginBottom: 32 }}>
+              <Typography.Title level={4}>{policy.title}</Typography.Title>
+              <div className="jdm-rich-text-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(policy.content) }} />
+            </div>
+          ))
+        )}
       </div>
     </>
   );

@@ -17,7 +17,7 @@ export interface UpdateContactSettingsInput {
   contactHours?: string;
 }
 
-export type SocialPlatform = 'FACEBOOK' | 'INSTAGRAM' | 'TIKTOK';
+export type SocialPlatform = 'FACEBOOK' | 'INSTAGRAM' | 'TIKTOK' | 'TWITTER' | 'YOUTUBE';
 
 export interface SocialLink {
   id: number;
@@ -25,4 +25,27 @@ export interface SocialLink {
   url: string;
   enabled: boolean;
   displayOrder: number;
+}
+
+export interface AboutContent {
+  title: string;
+  content: string;
+}
+
+export interface UpdateAboutContentInput {
+  title?: string;
+  content?: string;
+}
+
+export type PolicyType = 'PRIVACY' | 'TERMS' | 'BOOKING' | 'CANCELLATION' | 'PAYMENT' | 'CONDUCT';
+
+export interface PolicyPage {
+  type: PolicyType;
+  title: string;
+  content: string;
+}
+
+export interface UpdatePolicyInput {
+  title?: string;
+  content?: string;
 }
