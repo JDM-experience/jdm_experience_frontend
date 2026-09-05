@@ -8,6 +8,7 @@ const BASE_NAV_LINKS = [
   { key: '/admin/dashboard', label: 'Dashboard' },
   { key: '/admin/tours', label: 'Tours' },
   { key: '/admin/bookings', label: 'Bookings' },
+  { key: '/admin/reservations', label: 'Reservations' },
   { key: '/admin/customers', label: 'Customers' },
   { key: '/admin/messages', label: 'Messages' },
 ];

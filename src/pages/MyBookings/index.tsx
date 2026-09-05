@@ -132,6 +132,99 @@ export default function MyBookings() {
     }
   }, [bookings, filter]);
 
+  // The default "All Bookings" view groups confirmed reservations above pending requests so a
+  // customer can see what's actually locked in without hunting through a flat, unsorted list.
+  // Other filter tabs (Upcoming/Completed/Cancelled) still render as a single flat list below.
+  const groupedSections = useMemo(() => {
+    if (filter !== 'ALL') return null;
+    return [
+      { title: 'Upcoming Reservations', bookings: bookings.filter((b) => b.status === 'CONFIRMED') },
+      { title: 'Pending Requests', bookings: bookings.filter((b) => b.status === 'PENDING') },
+      { title: 'Completed', bookings: bookings.filter((b) => b.status === 'COMPLETED') },
+      { title: 'Cancelled', bookings: bookings.filter((b) => b.status === 'CANCELLED') },
+    ].filter((section) => section.bookings.length > 0);
+  }, [bookings, filter]);
+
+  function renderBookingCard(booking: Booking) {
+    const canManagePayment = booking.status !== 'CANCELLED' && booking.paymentStatus !== 'PAID';
+    return (
+      <Card key={booking.id} style={{ borderRadius: 12 }} styles={{ body: { padding: 16 } }}>
+        <Row gutter={16} align="middle" wrap>
+          <Col flex="72px">
+            {tourImages[booking.tourId] ? (
+              <ProductImage
+                fileName={tourImages[booking.tourId]}
+                alt={booking.tourNameSnapshot}
+                style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 10 }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: 10,
+                  background: '#f5f5f5',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#bfbfbf',
+                  fontSize: 24,
+                }}
+              >
+                <CalendarOutlined />
+              </div>
+            )}
+          </Col>
+
+          <Col flex="auto">
+            <Space align="center" size={8} wrap>
+              <Typography.Text strong style={{ fontSize: 16 }}>
+                {booking.tourNameSnapshot}
+              </Typography.Text>
+              <Tag color={STATUS_COLOR[booking.status]} icon={STATUS_ICON[booking.status]} style={{ marginInlineEnd: 0 }}>
+                {booking.status}
+              </Tag>
+              <Tag color={PAYMENT_STATUS_COLOR[booking.paymentStatus] ?? 'default'} style={{ marginInlineEnd: 0 }}>
+                {booking.paymentStatus}
+              </Tag>
+            </Space>
+            <div>
+              <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                Reference JDM-{booking.id}
+              </Typography.Text>
+            </div>
+            <Space size={16} wrap style={{ marginTop: 6 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                <CalendarOutlined /> {new Date(booking.bookingDate).toLocaleDateString('en-US', { dateStyle: 'medium', timeZone: 'UTC' })}
+              </Typography.Text>
+              <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                <TeamOutlined /> {booking.participants} participant{booking.participants === 1 ? '' : 's'}
+              </Typography.Text>
+            </Space>
+          </Col>
+
+          <Col flex="0 0 auto">
+            <Space orientation="vertical" size={8} style={{ alignItems: 'flex-end' }}>
+              <Typography.Title level={4} style={{ margin: 0 }}>
+                {formatCurrency(booking.totalPrice)}
+              </Typography.Title>
+              <Space>
+                <Link to={`/tours/${booking.tourId}`}>
+                  <Button>View Tour</Button>
+                </Link>
+                {canManagePayment && (
+                  <Button type="primary" icon={<UploadOutlined />} onClick={() => setProofTarget(booking)}>
+                    {booking.paymentStatus === 'UNPAID' ? 'Upload Proof' : 'Replace Proof'}
+                  </Button>
+                )}
+              </Space>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
+    );
+  }
+
   if (loading || isInitializing) return <PageSpinner />;
 
   if (!isAuthenticated) {
@@ -206,92 +299,33 @@ export default function MyBookings() {
         ]}
       />
 
-      {visibleBookings.length === 0 ? (
+      {groupedSections ? (
+        groupedSections.length === 0 ? (
+          <Card style={{ borderRadius: 12 }}>
+            <EmptyState title={EMPTY_FILTER_MESSAGE.ALL} />
+          </Card>
+        ) : (
+          <Space orientation="vertical" size={32} style={{ width: '100%' }}>
+            {groupedSections.map((section) => (
+              <div key={section.title}>
+                <Typography.Title level={5} style={{ marginBottom: 12 }}>
+                  {section.title}
+                </Typography.Title>
+                <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+                  {section.bookings.map(renderBookingCard)}
+                </Space>
+              </div>
+            ))}
+          </Space>
+        )
+      ) : visibleBookings.length === 0 ? (
         <Card style={{ borderRadius: 12 }}>
           <EmptyState title={EMPTY_FILTER_MESSAGE[filter]} />
         </Card>
       ) : (
-      <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-        {visibleBookings.map((booking) => {
-          const canManagePayment = booking.status !== 'CANCELLED' && booking.paymentStatus !== 'PAID';
-          return (
-            <Card key={booking.id} style={{ borderRadius: 12 }} styles={{ body: { padding: 16 } }}>
-              <Row gutter={16} align="middle" wrap>
-                <Col flex="72px">
-                  {tourImages[booking.tourId] ? (
-                    <ProductImage
-                      fileName={tourImages[booking.tourId]}
-                      alt={booking.tourNameSnapshot}
-                      style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 10 }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        width: 72,
-                        height: 72,
-                        borderRadius: 10,
-                        background: '#f5f5f5',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#bfbfbf',
-                        fontSize: 24,
-                      }}
-                    >
-                      <CalendarOutlined />
-                    </div>
-                  )}
-                </Col>
-
-                <Col flex="auto">
-                  <Space align="center" size={8} wrap>
-                    <Typography.Text strong style={{ fontSize: 16 }}>
-                      {booking.tourNameSnapshot}
-                    </Typography.Text>
-                    <Tag color={STATUS_COLOR[booking.status]} icon={STATUS_ICON[booking.status]} style={{ marginInlineEnd: 0 }}>
-                      {booking.status}
-                    </Tag>
-                    <Tag color={PAYMENT_STATUS_COLOR[booking.paymentStatus] ?? 'default'} style={{ marginInlineEnd: 0 }}>
-                      {booking.paymentStatus}
-                    </Tag>
-                  </Space>
-                  <div>
-                    <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-                      Reference JDM-{booking.id}
-                    </Typography.Text>
-                  </div>
-                  <Space size={16} wrap style={{ marginTop: 6 }}>
-                    <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-                      <CalendarOutlined /> {new Date(booking.bookingDate).toLocaleDateString('en-US', { dateStyle: 'medium', timeZone: 'UTC' })}
-                    </Typography.Text>
-                    <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-                      <TeamOutlined /> {booking.participants} participant{booking.participants === 1 ? '' : 's'}
-                    </Typography.Text>
-                  </Space>
-                </Col>
-
-                <Col flex="0 0 auto">
-                  <Space orientation="vertical" size={8} style={{ alignItems: 'flex-end' }}>
-                    <Typography.Title level={4} style={{ margin: 0 }}>
-                      {formatCurrency(booking.totalPrice)}
-                    </Typography.Title>
-                    <Space>
-                      <Link to={`/tours/${booking.tourId}`}>
-                        <Button>View Tour</Button>
-                      </Link>
-                      {canManagePayment && (
-                        <Button type="primary" icon={<UploadOutlined />} onClick={() => setProofTarget(booking)}>
-                          {booking.paymentStatus === 'UNPAID' ? 'Upload Proof' : 'Replace Proof'}
-                        </Button>
-                      )}
-                    </Space>
-                  </Space>
-                </Col>
-              </Row>
-            </Card>
-          );
-        })}
-      </Space>
+        <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+          {visibleBookings.map(renderBookingCard)}
+        </Space>
       )}
 
       <Modal

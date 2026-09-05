@@ -1,14 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Button, Empty, Image, Modal, Popconfirm, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { CheckCircleOutlined, CloseCircleOutlined, FileImageOutlined } from '@ant-design/icons';
+import { FileImageOutlined, FlagOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
-import {
-  confirmBooking,
-  getPaymentProofs,
-  listAllBookings,
-  rejectBookingPayment,
-} from '@/services/bookingService';
+import { completeBooking, getPaymentProofs, listAllBookings } from '@/services/bookingService';
 import { formatDateTime } from '@/utils/formatters';
 import { getErrorMessage } from '@/utils/errors';
 import type { Booking, BookingPaymentStatus, BookingStatus, PaymentProof } from '@/types/booking';
@@ -28,7 +23,10 @@ const PAYMENT_STATUS_COLOR: Record<BookingPaymentStatus, string> = {
   REFUNDED: 'default',
 };
 
-export default function AdminBookings() {
+/** Confirmed tours ready to run, plus completed history -- a filtered view of the same real
+ *  Booking data as the Bookings page, not a separate entity. A booking lands here the moment
+ *  it's confirmed (see admin/Bookings) and leaves the "needs action" queue for good. */
+export default function AdminReservations() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -37,17 +35,15 @@ export default function AdminBookings() {
   const [proofs, setProofs] = useState<PaymentProof[]>([]);
   const [proofsLoading, setProofsLoading] = useState(false);
 
-  function fetchBookings() {
+  function fetchReservations() {
     setLoading(true);
     listAllBookings()
-      // Once confirmed, a booking moves to the Reservations page (/admin/reservations) -- this
-      // page is only the incoming-request queue (awaiting review) plus a record of rejections.
-      .then((rows) => setBookings(rows.filter((b) => b.status === 'PENDING' || b.status === 'CANCELLED')))
-      .catch((error) => message.error(getErrorMessage(error, 'Unable to load bookings.')))
+      .then((rows) => setBookings(rows.filter((b) => b.status === 'CONFIRMED' || b.status === 'COMPLETED')))
+      .catch((error) => message.error(getErrorMessage(error, 'Unable to load reservations.')))
       .finally(() => setLoading(false));
   }
 
-  useEffect(fetchBookings, []);
+  useEffect(fetchReservations, []);
 
   function openProofModal(booking: Booking) {
     setProofModalBooking(booking);
@@ -58,27 +54,14 @@ export default function AdminBookings() {
       .finally(() => setProofsLoading(false));
   }
 
-  async function handleConfirm(id: number) {
+  async function handleComplete(id: number) {
     setBusyId(id);
     try {
-      await confirmBooking(id);
-      message.success('Booking confirmed. The customer has been emailed.');
-      fetchBookings();
+      await completeBooking(id);
+      message.success('Tour marked completed.');
+      fetchReservations();
     } catch (error) {
-      message.error(getErrorMessage(error, 'Unable to confirm this booking.'));
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function handleReject(id: number) {
-    setBusyId(id);
-    try {
-      await rejectBookingPayment(id);
-      message.success('Payment rejected; booking cancelled.');
-      fetchBookings();
-    } catch (error) {
-      message.error(getErrorMessage(error, 'Unable to reject this payment.'));
+      message.error(getErrorMessage(error, 'Unable to mark this tour completed.'));
     } finally {
       setBusyId(null);
     }
@@ -102,6 +85,13 @@ export default function AdminBookings() {
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             {booking.customerEmail ?? ''}
           </Typography.Text>
+          {booking.customerPhone && (
+            <div>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {booking.customerPhone}
+              </Typography.Text>
+            </div>
+          )}
         </div>
       ),
     },
@@ -130,19 +120,12 @@ export default function AdminBookings() {
       title: 'Actions',
       key: 'actions',
       render: (_, booking) =>
-        booking.status === 'PENDING' ? (
-          <Space>
-            <Popconfirm title={`Confirm booking JDM-${booking.id}?`} onConfirm={() => handleConfirm(booking.id)}>
-              <Button size="small" type="primary" icon={<CheckCircleOutlined />} loading={busyId === booking.id}>
-                Confirm
-              </Button>
-            </Popconfirm>
-            <Popconfirm title={`Reject payment for JDM-${booking.id}?`} onConfirm={() => handleReject(booking.id)}>
-              <Button size="small" danger icon={<CloseCircleOutlined />} loading={busyId === booking.id}>
-                Reject
-              </Button>
-            </Popconfirm>
-          </Space>
+        booking.status === 'CONFIRMED' ? (
+          <Popconfirm title={`Mark the tour for JDM-${booking.id} as completed?`} onConfirm={() => handleComplete(booking.id)}>
+            <Button size="small" icon={<FlagOutlined />} loading={busyId === booking.id}>
+              Mark Completed
+            </Button>
+          </Popconfirm>
         ) : (
           <Typography.Text type="secondary">—</Typography.Text>
         ),
@@ -154,16 +137,20 @@ export default function AdminBookings() {
   return (
     <div>
       <Typography.Title level={3} style={{ marginBottom: 24 }}>
-        Bookings
+        Reservations
       </Typography.Title>
 
-      <Table
-        columns={columns}
-        dataSource={bookings}
-        rowKey="id"
-        scroll={{ x: true }}
-        pagination={{ pageSize: 20, showSizeChanger: true, hideOnSinglePage: true }}
-      />
+      {bookings.length === 0 ? (
+        <Empty description="No confirmed reservations yet." />
+      ) : (
+        <Table
+          columns={columns}
+          dataSource={bookings}
+          rowKey="id"
+          scroll={{ x: true }}
+          pagination={{ pageSize: 20, showSizeChanger: true, hideOnSinglePage: true }}
+        />
+      )}
 
       <Modal
         title={proofModalBooking ? `Payment Proof — JDM-${proofModalBooking.id}` : 'Payment Proof'}

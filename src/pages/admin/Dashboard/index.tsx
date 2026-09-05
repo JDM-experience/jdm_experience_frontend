@@ -21,7 +21,7 @@ const CARDS: { key: keyof DashboardStats; title: string; icon: React.ReactNode; 
     key: 'reservations',
     title: 'Total Reservations',
     icon: <CalendarOutlined style={{ fontSize: 40 }} />,
-    to: '/admin/bookings',
+    to: '/admin/reservations',
     cta: 'View Reservations',
   },
   {
