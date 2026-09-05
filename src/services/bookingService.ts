@@ -58,3 +58,8 @@ export async function rejectBookingPayment(id: number): Promise<Booking> {
   const res = await httpClient.put<ApiEnvelope<Booking>>(`/bookings/${id}`, { status: 'CANCELLED', paymentStatus: 'FAILED' });
   return res.data;
 }
+
+/** Marks a tour as run -- only valid from CONFIRMED (backend rejects any other starting status). */
+export async function completeBooking(id: number): Promise<Booking> {
+  return updateBookingStatus(id, 'COMPLETED');
+}

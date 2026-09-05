@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Button, Empty, Image, Modal, Popconfirm, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { CheckCircleOutlined, CloseCircleOutlined, FileImageOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, CloseCircleOutlined, FileImageOutlined, FlagOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import {
+  completeBooking,
   confirmBooking,
   getPaymentProofs,
   listAllBookings,
@@ -82,6 +83,19 @@ export default function AdminBookings() {
     }
   }
 
+  async function handleComplete(id: number) {
+    setBusyId(id);
+    try {
+      await completeBooking(id);
+      message.success('Tour marked completed.');
+      fetchBookings();
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Unable to mark this tour completed.'));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   const columns: ColumnsType<Booking> = [
     { title: 'Reference', dataIndex: 'id', render: (id: number) => `JDM-${id}` },
     { title: 'Tour', dataIndex: 'tourNameSnapshot' },
@@ -127,23 +141,34 @@ export default function AdminBookings() {
     {
       title: 'Actions',
       key: 'actions',
-      render: (_, booking) =>
-        booking.status === 'PENDING' ? (
-          <Space>
-            <Popconfirm title={`Confirm booking JDM-${booking.id}?`} onConfirm={() => handleConfirm(booking.id)}>
-              <Button size="small" type="primary" icon={<CheckCircleOutlined />} loading={busyId === booking.id}>
-                Confirm
+      render: (_, booking) => {
+        if (booking.status === 'PENDING') {
+          return (
+            <Space>
+              <Popconfirm title={`Confirm booking JDM-${booking.id}?`} onConfirm={() => handleConfirm(booking.id)}>
+                <Button size="small" type="primary" icon={<CheckCircleOutlined />} loading={busyId === booking.id}>
+                  Confirm
+                </Button>
+              </Popconfirm>
+              <Popconfirm title={`Reject payment for JDM-${booking.id}?`} onConfirm={() => handleReject(booking.id)}>
+                <Button size="small" danger icon={<CloseCircleOutlined />} loading={busyId === booking.id}>
+                  Reject
+                </Button>
+              </Popconfirm>
+            </Space>
+          );
+        }
+        if (booking.status === 'CONFIRMED') {
+          return (
+            <Popconfirm title={`Mark the tour for JDM-${booking.id} as completed?`} onConfirm={() => handleComplete(booking.id)}>
+              <Button size="small" icon={<FlagOutlined />} loading={busyId === booking.id}>
+                Mark Completed
               </Button>
             </Popconfirm>
-            <Popconfirm title={`Reject payment for JDM-${booking.id}?`} onConfirm={() => handleReject(booking.id)}>
-              <Button size="small" danger icon={<CloseCircleOutlined />} loading={busyId === booking.id}>
-                Reject
-              </Button>
-            </Popconfirm>
-          </Space>
-        ) : (
-          <Typography.Text type="secondary">—</Typography.Text>
-        ),
+          );
+        }
+        return <Typography.Text type="secondary">—</Typography.Text>;
+      },
     },
   ];
 
