@@ -295,7 +295,7 @@ export default function MyBookings() {
       )}
 
       <Modal
-        title={proofTarget ? `Upload Payment Proof — JDM-${proofTarget.id}` : 'Upload Payment Proof'}
+        title={proofTarget ? `Upload Payment Proof — ${proofTarget.tourNameSnapshot}` : 'Upload Payment Proof'}
         open={proofTarget !== null}
         onCancel={() => setProofTarget(null)}
         footer={null}

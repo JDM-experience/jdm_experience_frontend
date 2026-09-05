@@ -151,7 +151,9 @@ export default function TourDetail() {
           <Image
             src={mainImage}
             alt={tour.name}
-            style={{ width: '100%', maxHeight: 520, objectFit: 'cover', borderRadius: 8 }}
+            width="100%"
+            height={480}
+            style={{ objectFit: 'cover', borderRadius: 8 }}
           />
           <Space style={{ marginTop: 16 }} wrap>
             {gallery.map((img) => (
