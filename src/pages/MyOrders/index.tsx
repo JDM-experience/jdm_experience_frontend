@@ -12,6 +12,28 @@ import { formatCurrency, formatDateTime } from '@/utils/formatters';
 import { formatTourDate, formatTourTime } from '@/utils/bookingUtils';
 import type { Order, OrderItem } from '@/types/order';
 
+// Static — doesn't depend on component state/props, so it's defined once at module scope
+// instead of being rebuilt on every render.
+const columns: ColumnsType<OrderItem> = [
+  {
+    title: 'Image',
+    dataIndex: 'productImage',
+    render: (image: string, item) => (
+      <ProductImage fileName={image} alt={item.productName} style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8 }} />
+    ),
+  },
+  { title: 'Tour Name', dataIndex: 'productName' },
+  { title: 'Tour Date', dataIndex: 'date', render: formatTourDate },
+  { title: 'Tour Time', dataIndex: 'time', render: formatTourTime },
+  { title: 'Quantity', dataIndex: 'quantity' },
+  { title: 'Tour Price', dataIndex: 'price', render: (price: number) => formatCurrency(price) },
+  {
+    title: 'Total Price',
+    key: 'subtotal',
+    render: (_, item) => formatCurrency(item.price),
+  },
+];
+
 export default function MyOrders() {
   const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -33,26 +55,6 @@ export default function MyOrders() {
       </div>
     );
   }
-
-  const columns: ColumnsType<OrderItem> = [
-    {
-      title: 'Image',
-      dataIndex: 'productImage',
-      render: (image: string, item) => (
-        <ProductImage fileName={image} alt={item.productName} style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8 }} />
-      ),
-    },
-    { title: 'Tour Name', dataIndex: 'productName' },
-    { title: 'Tour Date', dataIndex: 'date', render: formatTourDate },
-    { title: 'Tour Time', dataIndex: 'time', render: formatTourTime },
-    { title: 'Quantity', dataIndex: 'quantity' },
-    { title: 'Tour Price', dataIndex: 'price', render: (price: number) => formatCurrency(price) },
-    {
-      title: 'Total Price',
-      key: 'subtotal',
-      render: (_, item) => formatCurrency(item.price),
-    },
-  ];
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: '48px 24px' }}>

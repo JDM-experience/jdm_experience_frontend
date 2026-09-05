@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import type { AvailabilityStatus } from '@/types/product';
 import type { AvailabilityResult } from '@/types/availability';
 import type { Tour } from '@/types/tour';
-import { BOOKING_CUTOFF_HOUR_JST } from '@/constants';
+import { BOOKING_CUTOFF_HOUR_JST, PROMO_CODE, PROMO_DISCOUNT_RATE } from '@/constants';
 
 /** A Tour has no manual stock flag — availability instead comes directly from its tour-level
  *  `status`. There's no per-date slot list to check: once AVAILABLE, a customer can request any
@@ -27,6 +27,13 @@ export function manualStatusFromStock(stock: number): AvailabilityStatus {
 /** Ported from car_helpers.php::car_effective_price(). */
 export function effectivePrice(price: number, discount: number): number {
   return discount > 0 ? price - (price * discount) / 100 : price;
+}
+
+/** Ported from checkout.php's promo-code handling: knocks PROMO_DISCOUNT_RATE off `total` when
+ *  `code` matches PROMO_CODE (case/whitespace-insensitive), otherwise returns `total` unchanged. */
+export function applyPromoCode(total: number, code: string | null | undefined): number {
+  if (code?.trim().toUpperCase() !== PROMO_CODE) return total;
+  return total - total * PROMO_DISCOUNT_RATE;
 }
 
 export function isValidDateString(value: string): boolean {

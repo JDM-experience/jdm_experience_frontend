@@ -3,12 +3,8 @@
 // customer submits from one device, staff read it from another) — localStorage-backed mock data
 // never leaves the browser it was created in, so there is no meaningful mock fallback here.
 import { httpClient } from './httpClient';
+import type { ApiEnvelope } from '@/types/api';
 import type { ContactMessage, ContactMessageStatus, CreateContactMessageInput } from '@/types/contactMessage';
-
-interface ApiEnvelope<T> {
-  success: boolean;
-  data: T;
-}
 
 export async function createMessage(input: CreateContactMessageInput): Promise<ContactMessage> {
   const res = await httpClient.post<ApiEnvelope<ContactMessage>>('/contact', input);

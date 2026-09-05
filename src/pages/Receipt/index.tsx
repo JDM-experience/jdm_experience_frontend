@@ -19,6 +19,24 @@ const STATUS_TAG_COLOR: Record<OrderStatus, string> = {
   Cancelled: 'error',
 };
 
+// Static — doesn't depend on component state/props, so it's defined once at module scope
+// instead of being rebuilt on every render.
+const columns: ColumnsType<OrderItem> = [
+  {
+    title: 'Image',
+    dataIndex: 'productImage',
+    render: (image: string, item) => (
+      <ProductImage fileName={image} alt={item.productName} style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 5 }} />
+    ),
+  },
+  { title: 'Tour Name', dataIndex: 'productName' },
+  { title: 'Tour Date', dataIndex: 'date', render: formatTourDate },
+  { title: 'Tour Time', dataIndex: 'time', render: formatTourTime },
+  { title: 'Qty', dataIndex: 'quantity' },
+  { title: 'Tour Price', dataIndex: 'price', render: (price: number) => formatCurrency(price) },
+  { title: 'Total Price', key: 'subtotal', render: (_, item) => formatCurrency(item.price) },
+];
+
 export default function Receipt() {
   const { orderId } = useParams<{ orderId: string }>();
   const { user } = useAuth();
@@ -27,9 +45,19 @@ export default function Receipt() {
 
   useEffect(() => {
     if (!user) return;
+    // orderId can change without unmounting (navigating from one receipt to another) -- guard
+    // against a slower, stale fetch overwriting the newer receipt.
+    let cancelled = false;
     getOrderById(Number(orderId))
-      .then((result) => setOrder(result && result.userId === user.id ? result : null))
-      .finally(() => setLoading(false));
+      .then((result) => {
+        if (!cancelled) setOrder(result && result.userId === user.id ? result : null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [orderId, user]);
 
   if (loading) return <PageSpinner />;
@@ -41,22 +69,6 @@ export default function Receipt() {
       </div>
     );
   }
-
-  const columns: ColumnsType<OrderItem> = [
-    {
-      title: 'Image',
-      dataIndex: 'productImage',
-      render: (image: string, item) => (
-        <ProductImage fileName={image} alt={item.productName} style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 5 }} />
-      ),
-    },
-    { title: 'Tour Name', dataIndex: 'productName' },
-    { title: 'Tour Date', dataIndex: 'date', render: formatTourDate },
-    { title: 'Tour Time', dataIndex: 'time', render: formatTourTime },
-    { title: 'Qty', dataIndex: 'quantity' },
-    { title: 'Tour Price', dataIndex: 'price', render: (price: number) => formatCurrency(price) },
-    { title: 'Total Price', key: 'subtotal', render: (_, item) => formatCurrency(item.price) },
-  ];
 
   return (
     <div className="receipt-container" style={{ maxWidth: 800, margin: '80px auto', padding: '40px 24px 48px' }}>

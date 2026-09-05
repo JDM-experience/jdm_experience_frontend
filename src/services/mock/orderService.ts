@@ -3,7 +3,7 @@ import { delay } from './helpers';
 import { getCart, clearCart } from './cartService';
 import { ApiError } from '@/types/api';
 import type { CreateOrderInput, Order, OrderStatus } from '@/types/order';
-import { PROMO_CODE, PROMO_DISCOUNT_RATE } from '@/constants';
+import { applyPromoCode } from '@/utils/bookingUtils';
 // Cart lines now point at real Tours (see cartService.ts) — re-validate against the live
 // backend instead of the mock db.
 import { getTourById } from '@/services/tourService';
@@ -38,10 +38,7 @@ export async function createOrder(userId: number | null, input: CreateOrderInput
     throw new ApiError('Please add your card details before confirming the reservation.', 400);
   }
 
-  let total = cart.total;
-  if (input.promoCode && input.promoCode.trim().toUpperCase() === PROMO_CODE) {
-    total -= total * PROMO_DISCOUNT_RATE;
-  }
+  const total = applyPromoCode(cart.total, input.promoCode);
 
   const order: Order = {
     id: db.nextIds.order,

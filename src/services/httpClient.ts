@@ -12,41 +12,45 @@ export function setAccessTokenGetter(getter: AccessTokenGetter | null): void {
   getAccessToken = getter;
 }
 
+/** Attaches `Authorization: Bearer <token>` whenever a token getter is registered and a token is
+ *  actually obtainable — public endpoints keep working with no header, and a failed/expired
+ *  session just proceeds unauthenticated so protected endpoints correctly 401 instead of throwing
+ *  here. Shared by `request` and `uploadRequest`. */
+async function getAuthHeader(): Promise<Record<string, string>> {
+  if (!getAccessToken) return {};
+  try {
+    return { Authorization: `Bearer ${await getAccessToken()}` };
+  } catch {
+    return {};
+  }
+}
+
+/** Shared by `request` and `uploadRequest`: turns a non-ok Response into a thrown `ApiError`,
+ *  preferring the backend's JSON `message` field over the raw status text when present. */
+async function throwForErrorResponse(response: Response): Promise<never> {
+  let message = response.statusText;
+  try {
+    const body = (await response.json()) as { message?: string };
+    if (body.message) message = body.message;
+  } catch {
+    // Response had no JSON body — fall back to statusText.
+  }
+  throw new ApiError(message, response.status);
+}
+
 /**
  * Thin fetch wrapper for the Node.js backend. Every facade in src/services currently
  * re-exports its src/services/mock counterpart; a few (settingsService, adminUserService,
- * the auth contexts) bypass that and call this directly. Attaches `Authorization: Bearer
- * <token>` whenever a token getter is registered and a token is actually obtainable —
- * public endpoints keep working with no header, and a failed/expired session just proceeds
- * unauthenticated so protected endpoints correctly 401 instead of throwing here.
+ * the auth contexts) bypass that and call this directly.
  */
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-
-  if (getAccessToken) {
-    try {
-      headers.Authorization = `Bearer ${await getAccessToken()}`;
-    } catch {
-      // No valid Auth0 session (never logged in, or it expired) — proceed unauthenticated.
-    }
-  }
-
+  const authHeader = await getAuthHeader();
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
-    headers: { ...headers, ...options.headers },
+    headers: { 'Content-Type': 'application/json', ...authHeader, ...options.headers },
   });
 
-  if (!response.ok) {
-    let message = response.statusText;
-    try {
-      const body = (await response.json()) as { message?: string };
-      if (body.message) message = body.message;
-    } catch {
-      // Response had no JSON body — fall back to statusText.
-    }
-    throw new ApiError(message, response.status);
-  }
-
+  if (!response.ok) await throwForErrorResponse(response);
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
@@ -58,29 +62,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
  * unset on a fetch call with a FormData body; setting it manually breaks the upload.
  */
 async function uploadRequest<T>(path: string, formData: FormData): Promise<T> {
-  const headers: Record<string, string> = {};
+  const authHeader = await getAuthHeader();
+  const response = await fetch(`${API_URL}${path}`, { method: 'POST', headers: authHeader, body: formData });
 
-  if (getAccessToken) {
-    try {
-      headers.Authorization = `Bearer ${await getAccessToken()}`;
-    } catch {
-      // No valid Auth0 session (never logged in, or it expired) — proceed unauthenticated.
-    }
-  }
-
-  const response = await fetch(`${API_URL}${path}`, { method: 'POST', headers, body: formData });
-
-  if (!response.ok) {
-    let message = response.statusText;
-    try {
-      const body = (await response.json()) as { message?: string };
-      if (body.message) message = body.message;
-    } catch {
-      // Response had no JSON body — fall back to statusText.
-    }
-    throw new ApiError(message, response.status);
-  }
-
+  if (!response.ok) await throwForErrorResponse(response);
   return (await response.json()) as T;
 }
 

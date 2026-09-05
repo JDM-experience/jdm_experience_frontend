@@ -82,6 +82,37 @@ mix default exports into `src/components`, `src/services`, or `src/utils`.
   `Empty`) — see `ARCHITECTURE.md §9`. If you find yourself configuring the same AntD component
   the same way in 2+ places, that's the signal to extract a wrapper into
   `src/components/common/`.
+- **Split a page once `index.tsx` outgrows one screenful of scrolling** (a rough signal: several
+  `Modal`s each with their own `Form`, a non-trivial `columns` array, 400+ lines). Don't wait for it
+  to get worse — break it up in the same folder the first time a second modal/form gets added.
+  `src/pages/admin/Tours/` is the reference layout for this:
+  ```
+  src/pages/admin/Tours/
+  ├── index.tsx              # page state, data fetching, composes everything below
+  ├── types.ts                # shared form-values interface(s)
+  ├── constants.ts             # status options/colors, other page-local constants
+  ├── columns.tsx               # getXColumns(handlers) -> ColumnsType<T>, if the page has a Table
+  ├── CreateXModal.tsx           # one file per modal, named for what it does
+  ├── EditXModal.tsx
+  └── SomeSharedEditor.tsx        # a piece reused by 2+ modals (e.g. an image gallery editor)
+  ```
+  Rules of thumb for the split:
+  - Each modal owns its **own** `Form.useForm()` instance and local state (loading flags, upload
+    state, etc.) instead of the parent holding form state for every modal. Reset the form in a
+    `useEffect` keyed on the modal's `open` prop, not in the click handler that opens it.
+  - Talk to the parent only through callback props: `open`, `onClose`, and a `onCreated`/`onSaved`/
+    `onChange` for "something changed, please refetch." Never pass raw `useState` setters down.
+  - `index.tsx` keeps: top-level state (the data list, which modal is open, which row it's for),
+    the fetch/refresh functions, and the handlers that get threaded into `columns.tsx` and the
+    modals. It should not contain any `<Form>` or modal body JSX itself.
+  - Table column definitions become a plain function (`getTourColumns(handlers)`) in `columns.tsx`
+    rather than a `const columns = [...]` inline in the component — it's usually the single biggest
+    chunk of an oversized page component.
+  - Gotcha: if a modal's `useEffect` re-populates the form from a `tour`/`order`/... prop, key the
+    effect on that entity's `id`, not the object itself. The parent's refresh-after-save often
+    swaps in a new object reference for the *same* row while the modal is still open (e.g. after an
+    image upload) — keying on the full object re-fires the effect and clobbers whatever the user
+    was mid-typing in the other fields.
 
 ## 5. Data flow: pages → facades → mock services
 

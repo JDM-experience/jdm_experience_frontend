@@ -2,12 +2,8 @@
 // mock facade convention. The public Contact page and the admin Website Settings page both need
 // this to be live: hardcoding this content in React is exactly what this feature replaces.
 import { httpClient } from './httpClient';
+import type { ApiEnvelope } from '@/types/api';
 import type { ContactSettings, SocialLink, SocialPlatform, UpdateContactSettingsInput } from '@/types/settings';
-
-interface ApiEnvelope<T> {
-  success: boolean;
-  data: T;
-}
 
 export async function getContactSettings(): Promise<ContactSettings | null> {
   const res = await httpClient.get<ApiEnvelope<ContactSettings | null>>('/settings/contact');

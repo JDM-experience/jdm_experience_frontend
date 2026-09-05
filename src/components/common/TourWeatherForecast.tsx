@@ -41,15 +41,17 @@ export function TourWeatherForecast({ latitude, longitude, locationLabel, date }
     };
   }, [latitude, longitude, date]);
 
+  const weatherDescription = forecast ? describeWeatherCode(forecast.weatherCode) : null;
+
   return (
     <div style={{ marginTop: 16, padding: 16, background: '#fafafa', borderRadius: 8 }}>
       <Typography.Text strong>Weather in {locationLabel}</Typography.Text>
       <div style={{ marginTop: 8 }}>
         {loading && <Spin size="small" />}
         {!loading && error && <Alert type="error" showIcon message={error} />}
-        {!loading && !error && forecast && (
+        {!loading && !error && forecast && weatherDescription && (
           <Typography.Text>
-            {describeWeatherCode(forecast.weatherCode).icon} {describeWeatherCode(forecast.weatherCode).label}
+            {weatherDescription.icon} {weatherDescription.label}
             {' — '}
             High: {Math.round(forecast.tempMaxC)}°C · Low: {Math.round(forecast.tempMinC)}°C
           </Typography.Text>

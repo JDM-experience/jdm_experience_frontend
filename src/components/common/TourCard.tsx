@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Card, Typography } from 'antd';
 import type { Tour } from '@/types/tour';
@@ -6,7 +7,9 @@ import { ProductImage } from './ProductImage';
 import { PriceDisplay } from './PriceDisplay';
 import { AvailabilityBadge } from './AvailabilityBadge';
 
-export function TourCard({ tour }: { tour: Tour }) {
+/** Memoized: rendered many-up in tour grids (Home, Tours) where an unrelated state change on the
+ *  page (e.g. a filter, a weather widget) would otherwise re-render every card. */
+export const TourCard = memo(function TourCard({ tour }: { tour: Tour }) {
   const status = tourAvailabilityStatus(tour);
   const image = tour.images[0]?.imageUrl ?? '';
 
@@ -33,4 +36,4 @@ export function TourCard({ tour }: { tour: Tour }) {
       </Link>
     </Card>
   );
-}
+});

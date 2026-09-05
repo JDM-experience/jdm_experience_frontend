@@ -26,11 +26,13 @@ export default function Weather() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getProducts().then((results) => {
-      const locations = results.filter((tour) => !EXCLUDED_FROM_WEATHER.has(tour.name));
-      setTours(locations);
-      setSelectedTourId(locations[0]?.id);
-    });
+    getProducts()
+      .then((results) => {
+        const locations = results.filter((tour) => !EXCLUDED_FROM_WEATHER.has(tour.name));
+        setTours(locations);
+        setSelectedTourId(locations[0]?.id);
+      })
+      .catch(() => undefined); // Non-fatal — the forecast below still works against the Tokyo default location.
   }, []);
 
   useEffect(() => {

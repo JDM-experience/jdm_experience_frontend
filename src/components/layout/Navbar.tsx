@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AutoComplete, Avatar, Badge, Button, Drawer, Dropdown, Grid, Input, Layout, Menu, Space } from 'antd';
 import type { MenuProps } from 'antd';
@@ -69,6 +69,11 @@ export function Navbar() {
     return () => clearTimeout(handle);
   }, [searchTerm]);
 
+  const navMenuItems = useMemo(
+    () => NAV_LINKS.map((link) => ({ key: link.key, label: <Link to={link.key}>{link.label}</Link> })),
+    [],
+  );
+
   const goToSearch = (term: string) => {
     if (!term.trim()) return;
     navigate(`/tours?search=${encodeURIComponent(term.trim())}`);
@@ -135,7 +140,7 @@ export function Navbar() {
         <Menu
           mode="horizontal"
           selectable={false}
-          items={NAV_LINKS.map((link) => ({ key: link.key, label: <Link to={link.key}>{link.label}</Link> }))}
+          items={navMenuItems}
           style={{ flex: 1, justifyContent: 'center', borderBottom: 'none', minWidth: 0 }}
         />
       )}
@@ -194,12 +199,7 @@ export function Navbar() {
           style={{ marginBottom: 16 }}
           prefix={<SearchOutlined />}
         />
-        <Menu
-          mode="vertical"
-          selectable={false}
-          onClick={() => setDrawerOpen(false)}
-          items={NAV_LINKS.map((link) => ({ key: link.key, label: <Link to={link.key}>{link.label}</Link> }))}
-        />
+        <Menu mode="vertical" selectable={false} onClick={() => setDrawerOpen(false)} items={navMenuItems} />
       </Drawer>
     </Layout.Header>
   );

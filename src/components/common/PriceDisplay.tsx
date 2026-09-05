@@ -13,12 +13,10 @@ interface PriceDisplayProps {
 
 /** Ported from the repeated price-block markup in shop.php / product.php / cart.php. */
 export function PriceDisplay({ price, discount, label = 'Tour Price', align = 'left' }: PriceDisplayProps) {
-  const textAlign = align;
-
   if (discount > 0) {
     const discounted = effectivePrice(price, discount);
     return (
-      <div style={{ textAlign }}>
+      <div style={{ textAlign: align }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
           {label}
         </Text>
@@ -39,7 +37,7 @@ export function PriceDisplay({ price, discount, label = 'Tour Price', align = 'l
   }
 
   return (
-    <div style={{ textAlign }}>
+    <div style={{ textAlign: align }}>
       <Text type="secondary" style={{ fontSize: 12 }}>
         {label}
       </Text>

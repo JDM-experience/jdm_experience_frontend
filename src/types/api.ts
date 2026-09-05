@@ -11,3 +11,9 @@ export class ApiError extends Error {
     this.status = status;
   }
 }
+
+/** Every real backend endpoint (via httpClient) wraps its payload in this envelope. */
+export interface ApiEnvelope<T> {
+  success: boolean;
+  data: T;
+}
