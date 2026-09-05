@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AutoComplete, Avatar, Badge, Button, Drawer, Dropdown, Grid, Input, Layout, Menu, Space } from 'antd';
 import type { MenuProps } from 'antd';
-import { MenuOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
+import { CalendarOutlined, MenuOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { getMyBookings } from '@/services/bookingService';
 import { listTours } from '@/services/tourService';
@@ -179,6 +179,23 @@ export function Navbar() {
                 onPressEnter={(e) => goToSearch((e.target as HTMLInputElement).value)}
               />
             </AutoComplete>
+          )}
+
+          {isAuthenticated && (
+            // "Your Reservation" -- "My Reservations" is already the label inside the profile
+            // dropdown below; this is the same real /my-bookings page, just reachable in one
+            // click from the header the way the old (legacy, now-removed) cart icon used to be.
+            <Link to="/my-bookings" aria-label="Your Reservation">
+              <Button
+                type="text"
+                shape="circle"
+                icon={
+                  <Badge count={unpaidCount} size="small" title={`${unpaidCount} unpaid reservation${unpaidCount === 1 ? '' : 's'}`}>
+                    <CalendarOutlined style={{ fontSize: 18, color: '#000' }} />
+                  </Badge>
+                }
+              />
+            </Link>
           )}
 
           {isAuthenticated ? (

@@ -40,7 +40,7 @@ export default function AdminBookings() {
   function fetchBookings() {
     setLoading(true);
     listAllBookings()
-      // Once confirmed, a booking moves to the Reservations page (/admin/reservations) -- this
+      // Once confirmed, a booking moves to the Reservation Management page (/admin/orders) -- this
       // page is only the incoming-request queue (awaiting review) plus a record of rejections.
       .then((rows) => setBookings(rows.filter((b) => b.status === 'PENDING' || b.status === 'CANCELLED')))
       .catch((error) => message.error(getErrorMessage(error, 'Unable to load bookings.')))

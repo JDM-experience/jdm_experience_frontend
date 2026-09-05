@@ -137,7 +137,7 @@ export default function AdminReservations() {
   return (
     <div>
       <Typography.Title level={3} style={{ marginBottom: 24 }}>
-        Reservations
+        Reservation Management
       </Typography.Title>
 
       {bookings.length === 0 ? (

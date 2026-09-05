@@ -24,5 +24,5 @@ export const adminRoutes: AppRoute[] = [
   { path: 'admin/settings', element: <AdminSettings /> },
   { path: 'admin/payment-methods', element: <AdminPaymentMethods /> },
   { path: 'admin/bookings', element: <AdminBookings /> },
-  { path: 'admin/reservations', element: <AdminReservations /> },
+  { path: 'admin/orders', element: <AdminReservations /> },
 ];
