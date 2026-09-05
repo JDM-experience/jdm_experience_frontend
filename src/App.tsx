@@ -7,7 +7,6 @@ import type { AppState } from '@auth0/auth0-react';
 import { ANTD_THEME } from '@/constants';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { AdminAuthProvider } from '@/contexts/AdminAuthContext';
-import { CartProvider } from '@/contexts/CartContext';
 import { RouteMain } from '@/routes/RouteMain';
 
 const AUTH0_DOMAIN = import.meta.env.VITE_AUTH0_DOMAIN;
@@ -72,9 +71,7 @@ function App() {
           <Auth0ProviderWithNavigate>
             <AdminAuthProvider>
               <AuthProvider>
-                <CartProvider>
-                  <RouteMain />
-                </CartProvider>
+                <RouteMain />
               </AuthProvider>
             </AdminAuthProvider>
           </Auth0ProviderWithNavigate>

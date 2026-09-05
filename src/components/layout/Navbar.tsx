@@ -2,9 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AutoComplete, Avatar, Badge, Button, Drawer, Dropdown, Grid, Input, Layout, Menu, Space } from 'antd';
 import type { MenuProps } from 'antd';
-import { CalendarOutlined, MenuOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
+import { MenuOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCart } from '@/contexts/CartContext';
 import { getMyBookings } from '@/services/bookingService';
 import { listTours } from '@/services/tourService';
 import { formatCurrency } from '@/utils/formatters';
@@ -25,7 +24,6 @@ const NAV_LINKS = [
 
 export function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
-  const { count } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
   const screens = Grid.useBreakpoint();
@@ -182,10 +180,6 @@ export function Navbar() {
               />
             </AutoComplete>
           )}
-
-          <Link to="/cart" aria-label="Reservations">
-            <Button type="text" shape="circle" icon={<Badge count={count} size="small"><CalendarOutlined style={{ fontSize: 18, color: '#000' }} /></Badge>} />
-          </Link>
 
           {isAuthenticated ? (
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">

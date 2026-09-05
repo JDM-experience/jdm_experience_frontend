@@ -4,7 +4,7 @@ import { Button, Card, Col, Row, Statistic, Typography } from 'antd';
 import { CarOutlined, CalendarOutlined, MailOutlined, UserOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { listTours } from '@/services/tourService';
-import { getAllOrders } from '@/services/orderService';
+import { listAllBookings } from '@/services/bookingService';
 import { getCustomers } from '@/services/customerService';
 import { getMessages } from '@/services/messageService';
 
@@ -21,7 +21,7 @@ const CARDS: { key: keyof DashboardStats; title: string; icon: React.ReactNode; 
     key: 'reservations',
     title: 'Total Reservations',
     icon: <CalendarOutlined style={{ fontSize: 40 }} />,
-    to: '/admin/orders',
+    to: '/admin/bookings',
     cta: 'View Reservations',
   },
   {
@@ -38,9 +38,9 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
   useEffect(() => {
-    Promise.all([listTours(), getAllOrders(), getCustomers(), getMessages()]).then(
-      ([tours, orders, customers, messages]) => {
-        setStats({ tours: tours.length, reservations: orders.length, customers: customers.length, messages: messages.length });
+    Promise.all([listTours(), listAllBookings(), getCustomers(), getMessages()]).then(
+      ([tours, bookings, customers, messages]) => {
+        setStats({ tours: tours.length, reservations: bookings.length, customers: customers.length, messages: messages.length });
       },
     );
   }, []);

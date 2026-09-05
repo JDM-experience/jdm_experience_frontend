@@ -1,5 +1,4 @@
 import type { Product } from '@/types/product';
-import type { Order } from '@/types/order';
 
 export interface MockUserRecord {
   id: number;
@@ -18,12 +17,10 @@ export interface MockAdminRecord {
 interface MockDatabase {
   products: Product[];
   users: MockUserRecord[];
-  orders: Order[];
   admins: MockAdminRecord[];
   nextIds: {
     product: number;
     user: number;
-    order: number;
   };
 }
 
@@ -179,56 +176,7 @@ function buildSeedDatabase(): MockDatabase {
       },
     ],
     admins: [{ username: 'admin', password: 'admin123' }],
-    orders: [
-      {
-        id: 1,
-        userId: 1,
-        customerName: 'Taro Yamada',
-        email: 'taro@example.com',
-        address: '1-1 Shibuya, Tokyo, Japan',
-        paymentMethod: 'Cash on Delivery',
-        totalAmount: 22500,
-        orderDate: '2026-07-20 09:15:00',
-        status: 'Delivered',
-        items: [
-          {
-            productId: 1,
-            productName: 'Nissan GT-R R35 Night Drive',
-            productImage: 'hompage.JPG',
-            date: '2026-07-25',
-            time: '19:00',
-            quantity: 1,
-            price: 22500,
-            guideId: null,
-          },
-        ],
-      },
-      {
-        id: 2,
-        userId: 1,
-        customerName: 'Taro Yamada',
-        email: 'taro@example.com',
-        address: '1-1 Shibuya, Tokyo, Japan',
-        paymentMethod: 'GCash',
-        totalAmount: 12750,
-        orderDate: '2026-08-01 16:40:00',
-        status: 'Pending',
-        paymentProofName: 'gcash_proof_sample.jpg',
-        items: [
-          {
-            productId: 3,
-            productName: 'Daikoku PA Meetup Tour',
-            productImage: 'Parkinglot.JPG',
-            date: '2026-08-10',
-            time: '20:00',
-            quantity: 1,
-            price: 12750,
-            guideId: null,
-          },
-        ],
-      },
-    ],
-    nextIds: { product: 9, user: 3, order: 3 },
+    nextIds: { product: 9, user: 3 },
   };
 }
 

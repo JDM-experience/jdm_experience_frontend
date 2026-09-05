@@ -1,8 +1,6 @@
 import type { AppRoute } from '@/routes/types';
 import AdminDashboard from '@/pages/admin/Dashboard';
 import AdminTours from '@/pages/admin/Tours';
-import AdminOrders from '@/pages/admin/Orders';
-import AdminOrderReceipt from '@/pages/admin/OrderReceipt';
 import AdminCustomers from '@/pages/admin/Customers';
 import AdminCustomerDetail from '@/pages/admin/CustomerDetail';
 import AdminMessages from '@/pages/admin/Messages';
@@ -18,8 +16,6 @@ import AdminBookings from '@/pages/admin/Bookings';
 export const adminRoutes: AppRoute[] = [
   { path: 'admin/dashboard', element: <AdminDashboard /> },
   { path: 'admin/tours', element: <AdminTours /> },
-  { path: 'admin/orders', element: <AdminOrders /> },
-  { path: 'admin/receipt/:orderId', element: <AdminOrderReceipt /> },
   { path: 'admin/customers', element: <AdminCustomers /> },
   { path: 'admin/customers/:customerId', element: <AdminCustomerDetail /> },
   { path: 'admin/messages', element: <AdminMessages /> },
