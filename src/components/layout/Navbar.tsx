@@ -124,7 +124,9 @@ export function Navbar() {
         position: 'fixed',
         top: 0,
         insetInline: 0,
-        zIndex: 100,
+        // Above Leaflet's own stacking (map panes go up to 700, its zoom controls to 1000) --
+        // otherwise the tour-route map on the Home page paints over this fixed header on scroll.
+        zIndex: 1100,
         width: '100%',
         background: '#fff',
         borderBottom: '1px solid #f0f0f0',
