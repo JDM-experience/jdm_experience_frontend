@@ -30,12 +30,36 @@ a {
    ANTD_THEME's borderRadius token) instead of a full pill, for consistency with every other input
    in the app. Text/placeholder colors are pinned explicitly (a plain <input> doesn't otherwise
    know it's sitting on a dark surface). */
+.jdm-nav-search,
+.jdm-nav-search .ant-select-selector {
+  box-sizing: border-box;
+}
+/* AutoComplete renders its own `.ant-select-selector` box around the customized <Input>, which
+   otherwise carries its own background/border/padding and stacks under the Input's own affix
+   wrapper as a second, nested box. Strip it down to an invisible passthrough -- the affix wrapper
+   below is the only element allowed to paint a border/background. */
+.jdm-nav-search.ant-select .ant-select-selector {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  height: 32px !important;
+}
+.jdm-nav-search {
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
 .jdm-nav-search .ant-input-affix-wrapper {
+  box-sizing: border-box;
   background: #1c2333 !important;
   border: 1px solid #303849;
-  border-radius: 6px;
+  border-radius: 8px;
+  width: 100%;
   height: 32px;
-  padding-block: 0;
+  margin: 0;
+  padding: 0 11px;
   display: flex;
   align-items: center;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -48,6 +72,7 @@ a {
   color: #ffffff;
   line-height: normal;
   height: 100%;
+  padding: 0;
   border: none !important;
   box-shadow: none !important;
 }
