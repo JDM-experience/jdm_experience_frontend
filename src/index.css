@@ -22,17 +22,20 @@ a {
   color: inherit;
 }
 
-/* Header search box: matches the navbar's own background exactly (rather than a lighter "filled"
-   surface) so it reads as an inset field with a border, not a floating panel -- only the 1px
-   border distinguishes it from the navbar. Sized to match the circular icon buttons beside it
-   (default AntD control height, ~32px) rather than a forced custom height. Border-radius matches
-   the app's default input radius (see ANTD_THEME's borderRadius token) instead of a full pill,
-   for consistency with every other input in the app. Text/placeholder colors are pinned
-   explicitly (a plain <input> doesn't otherwise know it's sitting on a dark surface). */
+/* Header search box: a lighter surface than the navbar (visible contrast, not just a border) but
+   still dark -- reads as an inset field rather than a floating panel because it's still clearly
+   darker than a light-theme input would be. Height/padding are pinned explicitly and tight so it
+   matches the circular icon buttons beside it (~32px) instead of AntD's slightly taller default
+   for a "filled"-variant input. Border-radius matches the app's default input radius (see
+   ANTD_THEME's borderRadius token) instead of a full pill, for consistency with every other input
+   in the app. Text/placeholder colors are pinned explicitly (a plain <input> doesn't otherwise
+   know it's sitting on a dark surface). */
 .jdm-nav-search .ant-input-affix-wrapper {
-  background: #0f1117 !important;
+  background: #1c2333 !important;
   border: 1px solid #303849;
   border-radius: 6px;
+  height: 32px;
+  padding-block: 0;
   display: flex;
   align-items: center;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -41,6 +44,7 @@ a {
   background: transparent !important;
   color: #ffffff;
   line-height: normal;
+  height: 100%;
 }
 .jdm-nav-search .ant-input-affix-wrapper .ant-input::placeholder {
   color: rgba(255, 255, 255, 0.4);
@@ -74,7 +78,7 @@ a {
 /* Same dark pill treatment for the mobile drawer's search box, without the desktop pill's fixed
    28px height (this one uses the default, larger Input.Search size). */
 .jdm-drawer-search .ant-input-affix-wrapper {
-  background: #0f1117 !important;
+  background: #1c2333 !important;
   border: 1px solid #303849;
   border-radius: 20px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
