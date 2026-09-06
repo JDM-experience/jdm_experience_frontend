@@ -165,6 +165,7 @@ export function Navbar() {
           {!isMobile && (
             <AutoComplete
               className="jdm-nav-search"
+              size="small"
               options={searchOptions}
               value={searchTerm}
               onChange={setSearchTerm}

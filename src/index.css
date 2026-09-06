@@ -18,9 +18,16 @@ a {
 }
 
 /* Header search box: keep it a low, quiet pill — antd's default focus/hover ring on a black
-   primary theme renders as a thick black outline that reads as a design glitch here. */
+   primary theme renders as a thick black outline that reads as a design glitch here. Height is
+   pinned explicitly since AutoComplete's own sizing doesn't always reach the inner Input. */
 .jdm-nav-search .ant-input-affix-wrapper {
   border-radius: 20px;
+  height: 28px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.jdm-nav-search.ant-select-single .ant-select-selector {
+  height: 28px;
 }
 .jdm-nav-search .ant-input-affix-wrapper:hover,
 .jdm-nav-search .ant-input-affix-wrapper:focus,
