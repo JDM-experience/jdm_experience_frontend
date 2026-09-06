@@ -13,13 +13,16 @@ import {
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ProductImage } from '@/components/common/ProductImage';
+import { BookingReviewControl } from '@/components/common/BookingReviewControl';
 import { useAuth } from '@/contexts/AuthContext';
 import { cancelBooking, getMyBookings, submitPaymentProof } from '@/services/bookingService';
 import { getTourById } from '@/services/tourService';
+import { getMyReviews } from '@/services/reviewService';
 import { ALLOWED_IMAGE_TYPES, uploadPaymentProofImage } from '@/services/uploadService';
 import { formatCurrency } from '@/utils/formatters';
 import { getErrorMessage } from '@/utils/errors';
 import type { Booking, BookingStatus } from '@/types/booking';
+import type { Review } from '@/types/review';
 
 const STATUS_COLOR: Record<BookingStatus, string> = {
   PENDING: 'warning',
@@ -67,6 +70,20 @@ export default function MyBookings() {
   const [filter, setFilter] = useState<FilterKey>('ALL');
   const [search, setSearch] = useState('');
   const [cancellingId, setCancellingId] = useState<number | null>(null);
+  // Keyed by tourId, not bookingId -- a review is per (customer, tour), matching the existing
+  // Review model's unique constraint (see review.service.ts), same as the Tour Details page's own
+  // review section.
+  const [reviewsByTour, setReviewsByTour] = useState<Record<number, Review>>({});
+
+  function fetchMyReviews() {
+    getMyReviews()
+      .then((reviews) => setReviewsByTour(Object.fromEntries(reviews.map((r) => [r.tourId, r]))))
+      .catch(() => undefined); // Non-fatal -- worst case the review action doesn't show yet.
+  }
+
+  useEffect(() => {
+    if (isAuthenticated) fetchMyReviews();
+  }, [isAuthenticated]);
 
   function fetchBookings(searchTerm = search) {
     setLoading(true);
@@ -250,6 +267,14 @@ export default function MyBookings() {
                     </Button>
                   </Popconfirm>
                 )}
+                {booking.status === 'COMPLETED' && (
+                  <BookingReviewControl
+                    tourId={booking.tourId}
+                    tourName={booking.tourNameSnapshot}
+                    review={reviewsByTour[booking.tourId] ?? null}
+                    onSubmitted={fetchMyReviews}
+                  />
+                )}
               </Space>
             </Space>
           </Col>
@@ -420,6 +445,14 @@ export default function MyBookings() {
                 </Button>
               </Popconfirm>
             )}
+            {detailsTarget && detailsTarget.status === 'COMPLETED' && (
+              <BookingReviewControl
+                tourId={detailsTarget.tourId}
+                tourName={detailsTarget.tourNameSnapshot}
+                review={reviewsByTour[detailsTarget.tourId] ?? null}
+                onSubmitted={fetchMyReviews}
+              />
+            )}
             {detailsTarget && (
               <Link to={`/tours/${detailsTarget.tourId}`}>
                 <Button>View Tour Page</Button>
@@ -451,6 +484,11 @@ export default function MyBookings() {
             <Descriptions.Item label="Contact Email">{detailsTarget.customerEmail ?? '—'}</Descriptions.Item>
             <Descriptions.Item label="Contact Phone">{detailsTarget.customerPhone ?? '—'}</Descriptions.Item>
             <Descriptions.Item label="Special Requests">{detailsTarget.specialRequests ?? '—'}</Descriptions.Item>
+            {detailsTarget.status === 'COMPLETED' && (
+              <Descriptions.Item label="Review">
+                {reviewsByTour[detailsTarget.tourId] ? 'Submitted' : 'Not Submitted'}
+              </Descriptions.Item>
+            )}
           </Descriptions>
         )}
       </Modal>

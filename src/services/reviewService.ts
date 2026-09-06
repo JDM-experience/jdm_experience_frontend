@@ -9,6 +9,14 @@ export async function getTourReviews(tourId: number): Promise<TourReviews> {
   return res.data;
 }
 
+/** The caller's own reviews across every tour, in one call -- lets a page listing several
+ *  bookings (e.g. My Reservations) show "Leave a Review" vs "View Review" per booking without a
+ *  separate call per tour. */
+export async function getMyReviews(): Promise<Review[]> {
+  const res = await httpClient.get<ApiEnvelope<Review[]>>('/reviews/mine');
+  return res.data;
+}
+
 /** Backend re-verifies the caller has a COMPLETED booking for this tour -- this call is rejected
  *  with 403 otherwise, regardless of what the UI decided to show. */
 export async function createReview(tourId: number, input: CreateReviewInput): Promise<Review> {
