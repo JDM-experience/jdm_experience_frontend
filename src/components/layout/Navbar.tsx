@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AutoComplete, Avatar, Badge, Button, Drawer, Dropdown, Grid, Input, Layout, Menu, Space } from 'antd';
 import type { MenuProps } from 'antd';
@@ -21,6 +21,12 @@ const NAV_LINKS = [
   { key: '/about', label: 'About' },
   { key: '/contact', label: 'Contact' },
 ];
+
+// Shared by the calendar icon's count badge and the avatar's dot badge so both read as the same
+// "notification marker" despite showing different content -- same ring width/color and offset
+// from the icon's corner, rather than each falling back to AntD's own slightly different
+// defaults for a count vs. a dot indicator.
+const NAV_BADGE_STYLE: CSSProperties = { boxShadow: '0 0 0 2px #0F1117' };
 
 export function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -144,7 +150,7 @@ export function Navbar() {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 24,
-          paddingInline: 24,
+          paddingInline: 32,
         }}
       >
         <Link to="/" style={{ display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', flexShrink: 0 }}>
@@ -194,31 +200,30 @@ export function Navbar() {
             // "Your Reservation" -- "My Reservations" is already the label inside the profile
             // dropdown below; this is the same real /cart page, just reachable in one click from
             // the header the way the old cart icon used to work.
-            <Link to="/cart" aria-label="Your Reservation">
-              <Button
-                type="text"
-                shape="circle"
-                icon={
-                  <Badge count={unpaidCount} size="small" title={`${unpaidCount} unpaid reservation${unpaidCount === 1 ? '' : 's'}`}>
-                    <CalendarOutlined style={{ fontSize: 18, color: '#fff' }} />
-                  </Badge>
-                }
-              />
+            <Link to="/cart" aria-label="Your Reservation" className="jdm-nav-icon-btn">
+              <Badge
+                count={unpaidCount}
+                size="small"
+                title={`${unpaidCount} unpaid reservation${unpaidCount === 1 ? '' : 's'}`}
+                style={NAV_BADGE_STYLE}
+              >
+                <CalendarOutlined style={{ fontSize: 18, color: '#fff' }} />
+              </Badge>
             </Link>
           )}
 
           {isAuthenticated ? (
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-              <Space style={{ cursor: 'pointer' }} size={8}>
-                <Badge dot={unpaidCount > 0} title={`${unpaidCount} unpaid reservation${unpaidCount === 1 ? '' : 's'}`}>
+              <Space className="jdm-nav-icon-btn" size={8}>
+                <Badge dot={unpaidCount > 0} title={`${unpaidCount} unpaid reservation${unpaidCount === 1 ? '' : 's'}`} style={NAV_BADGE_STYLE}>
                   <Avatar size={32} icon={<UserOutlined />} style={{ background: '#252D40' }} />
                 </Badge>
                 {!isMobile && <span style={{ fontWeight: 600 }}>Hi, {(user?.fullName ?? user?.email)?.split(' ')[0]}</span>}
               </Space>
             </Dropdown>
           ) : (
-            <Link to="/login" aria-label="Login">
-              <Button type="text" shape="circle" icon={<UserOutlined style={{ fontSize: 18, color: '#fff' }} />} />
+            <Link to="/login" aria-label="Login" className="jdm-nav-icon-btn">
+              <UserOutlined style={{ fontSize: 18, color: '#fff' }} />
             </Link>
           )}
 

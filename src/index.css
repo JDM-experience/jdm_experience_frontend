@@ -22,20 +22,20 @@ a {
   color: inherit;
 }
 
-/* Header search box: a deliberate pill sitting on the dark navbar, sized to match the
-   circular icon buttons beside it (default AntD control height, ~32px) rather than a forced
-   custom height -- that mismatch was what threw off vertical alignment with the calendar/avatar
-   icons. Border-radius matches the app's default input radius (see ANTD_THEME's borderRadius
-   token) instead of a full pill, for consistency with every other input in the app. The
-   "filled" input variant's own computed background doesn't read well against #0F1117, so
-   background/text/placeholder colors are pinned explicitly (a plain <input> doesn't otherwise
-   know it's sitting on a dark surface). */
+/* Header search box: matches the navbar's own background exactly (rather than a lighter "filled"
+   surface) so it reads as an inset field with a border, not a floating panel -- only the 1px
+   border distinguishes it from the navbar. Sized to match the circular icon buttons beside it
+   (default AntD control height, ~32px) rather than a forced custom height. Border-radius matches
+   the app's default input radius (see ANTD_THEME's borderRadius token) instead of a full pill,
+   for consistency with every other input in the app. Text/placeholder colors are pinned
+   explicitly (a plain <input> doesn't otherwise know it's sitting on a dark surface). */
 .jdm-nav-search .ant-input-affix-wrapper {
-  background: #1c2333 !important;
+  background: #0f1117 !important;
   border: 1px solid #303849;
   border-radius: 6px;
   display: flex;
   align-items: center;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .jdm-nav-search .ant-input-affix-wrapper .ant-input {
   background: transparent !important;
@@ -45,19 +45,39 @@ a {
 .jdm-nav-search .ant-input-affix-wrapper .ant-input::placeholder {
   color: rgba(255, 255, 255, 0.4);
 }
-.jdm-nav-search .ant-input-affix-wrapper:hover,
+.jdm-nav-search .ant-input-affix-wrapper:hover {
+  border-color: #4b5468 !important;
+  box-shadow: none !important;
+}
 .jdm-nav-search .ant-input-affix-wrapper:focus,
 .jdm-nav-search .ant-input-affix-wrapper-focused {
   border-color: #e03d36 !important;
-  box-shadow: none !important;
+  box-shadow: 0 0 0 2px rgba(224, 61, 54, 0.2) !important;
+}
+
+/* Calendar icon / avatar in the navbar: a shared circular-ish hover highlight so both signal
+   they're clickable the same way, plus a shared badge ring (see NAV_BADGE_STYLE in Navbar.tsx)
+   so the count badge and the dot badge read as the same kind of marker. */
+.jdm-nav-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.jdm-nav-icon-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 /* Same dark pill treatment for the mobile drawer's search box, without the desktop pill's fixed
    28px height (this one uses the default, larger Input.Search size). */
 .jdm-drawer-search .ant-input-affix-wrapper {
-  background: #1c2333 !important;
+  background: #0f1117 !important;
   border: 1px solid #303849;
   border-radius: 20px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .jdm-drawer-search .ant-input-affix-wrapper .ant-input {
   background: transparent !important;
@@ -66,11 +86,14 @@ a {
 .jdm-drawer-search .ant-input-affix-wrapper .ant-input::placeholder {
   color: rgba(255, 255, 255, 0.4);
 }
-.jdm-drawer-search .ant-input-affix-wrapper:hover,
+.jdm-drawer-search .ant-input-affix-wrapper:hover {
+  border-color: #4b5468 !important;
+  box-shadow: none !important;
+}
 .jdm-drawer-search .ant-input-affix-wrapper:focus,
 .jdm-drawer-search .ant-input-affix-wrapper-focused {
   border-color: #e03d36 !important;
-  box-shadow: none !important;
+  box-shadow: 0 0 0 2px rgba(224, 61, 54, 0.2) !important;
 }
 .jdm-drawer-search .ant-input-group-addon .ant-btn {
   border-radius: 0 20px 20px 0 !important;
