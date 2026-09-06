@@ -39,12 +39,17 @@ a {
   display: flex;
   align-items: center;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  /* The "filled" variant otherwise leaves its own inset shadow/underline on the wrapper (visible
+     as a faint second line along the bottom edge, layered under the custom border above). */
+  box-shadow: none !important;
 }
 .jdm-nav-search .ant-input-affix-wrapper .ant-input {
   background: transparent !important;
   color: #ffffff;
   line-height: normal;
   height: 100%;
+  border: none !important;
+  box-shadow: none !important;
 }
 .jdm-nav-search .ant-input-affix-wrapper .ant-input::placeholder {
   color: rgba(255, 255, 255, 0.4);
