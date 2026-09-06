@@ -67,3 +67,8 @@ export async function uploadPaymentMethodImage(file: File): Promise<string> {
 export async function uploadPaymentProofImage(file: File): Promise<string> {
   return uploadImage(file, '/uploads/payment-proofs');
 }
+
+/** SUPER_ADMIN/ADMIN only (enforced server-side) -- staff evidence that a refund was processed. */
+export async function uploadRefundProofImage(file: File): Promise<string> {
+  return uploadImage(file, '/uploads/refund-proofs');
+}

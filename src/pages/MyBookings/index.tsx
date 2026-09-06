@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Card, Col, Descriptions, Input, Modal, Popconfirm, Row, Segmented, Space, Tag, Typography, Upload, message } from 'antd';
+import { Button, Card, Col, Descriptions, Form, Input, Modal, Popconfirm, Row, Segmented, Select, Space, Tag, Typography, Upload, message } from 'antd';
 import {
   CalendarOutlined,
   CheckCircleOutlined,
@@ -16,13 +16,36 @@ import { ProductImage } from '@/components/common/ProductImage';
 import { BookingReviewControl } from '@/components/common/BookingReviewControl';
 import { useAuth } from '@/contexts/AuthContext';
 import { cancelBooking, getMyBookings, submitPaymentProof } from '@/services/bookingService';
+import { getMyCancellationRequests, requestCancellation } from '@/services/cancellationRequestService';
+import { listPaymentMethods } from '@/services/paymentMethodService';
 import { getTourById } from '@/services/tourService';
 import { getMyReviews } from '@/services/reviewService';
 import { ALLOWED_IMAGE_TYPES, uploadPaymentProofImage } from '@/services/uploadService';
 import { formatCurrency } from '@/utils/formatters';
+import { isMoreThan24HoursBeforeBooking } from '@/utils/bookingUtils';
 import { getErrorMessage } from '@/utils/errors';
 import type { Booking, BookingStatus } from '@/types/booking';
+import type { CancellationRequest, CancellationRequestStatus } from '@/types/cancellationRequest';
+import type { PaymentMethod } from '@/types/paymentMethod';
 import type { Review } from '@/types/review';
+
+const CANCELLATION_STATUS_COLOR: Record<CancellationRequestStatus, string> = {
+  PENDING: 'warning',
+  APPROVED: 'processing',
+  REFUND_PROCESSING: 'processing',
+  REFUNDED: 'success',
+  REJECTED: 'error',
+};
+
+const CANCELLATION_STATUS_LABEL: Record<CancellationRequestStatus, string> = {
+  PENDING: 'Cancellation: Pending Review',
+  APPROVED: 'Cancellation: Approved',
+  REFUND_PROCESSING: 'Refund Processing',
+  REFUNDED: 'Refunded',
+  REJECTED: 'Cancellation Rejected',
+};
+
+const CANCELLATION_REASON_OPTIONS = ['Change of plans', 'Scheduling conflict', 'Emergency', 'Other'];
 
 const STATUS_COLOR: Record<BookingStatus, string> = {
   PENDING: 'warning',
@@ -75,15 +98,63 @@ export default function MyBookings() {
   // review section.
   const [reviewsByTour, setReviewsByTour] = useState<Record<number, Review>>({});
 
+  // Keyed by bookingId (not tourId, unlike reviewsByTour) -- a cancellation request is per booking,
+  // not per tour, and a customer may have several bookings for the same tour.
+  const [cancellationsByBooking, setCancellationsByBooking] = useState<Record<number, CancellationRequest>>({});
+  const [cancellationRequestTarget, setCancellationRequestTarget] = useState<Booking | null>(null);
+  const [refundMethods, setRefundMethods] = useState<PaymentMethod[]>([]);
+  const [submittingCancellationRequest, setSubmittingCancellationRequest] = useState(false);
+  const [cancellationForm] = Form.useForm();
+
   function fetchMyReviews() {
     getMyReviews()
       .then((reviews) => setReviewsByTour(Object.fromEntries(reviews.map((r) => [r.tourId, r]))))
       .catch(() => undefined); // Non-fatal -- worst case the review action doesn't show yet.
   }
 
+  function fetchMyCancellationRequests() {
+    getMyCancellationRequests()
+      .then((requests) => setCancellationsByBooking(Object.fromEntries(requests.map((r) => [r.bookingId, r]))))
+      .catch(() => undefined); // Non-fatal -- worst case the request action doesn't show yet.
+  }
+
   useEffect(() => {
-    if (isAuthenticated) fetchMyReviews();
+    if (isAuthenticated) {
+      fetchMyReviews();
+      fetchMyCancellationRequests();
+    }
   }, [isAuthenticated]);
+
+  function openCancellationRequestModal(booking: Booking) {
+    setCancellationRequestTarget(booking);
+    cancellationForm.resetFields();
+    listPaymentMethods()
+      .then((methods) => setRefundMethods(methods.filter((m) => m.isActive)))
+      .catch((error) => message.error(getErrorMessage(error, 'Unable to load refund methods.')));
+  }
+
+  async function handleSubmitCancellationRequest() {
+    if (!cancellationRequestTarget) return;
+    const values = await cancellationForm.validateFields();
+    const reason = values.reasonCategory === 'Other' ? (values.otherReason as string).trim() : (values.reasonCategory as string);
+    setSubmittingCancellationRequest(true);
+    try {
+      const request = await requestCancellation({
+        bookingId: cancellationRequestTarget.id,
+        reason,
+        refundMethodId: values.refundMethodId,
+        refundDestination: (values.refundDestination as string).trim(),
+      });
+      setCancellationsByBooking((prev) => ({ ...prev, [request.bookingId]: request }));
+      message.success('Cancellation request submitted — awaiting review.');
+      setCancellationRequestTarget(null);
+      setDetailsTarget(null);
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Unable to submit cancellation request.'));
+    } finally {
+      setSubmittingCancellationRequest(false);
+    }
+  }
 
   function fetchBookings(searchTerm = search) {
     setLoading(true);
@@ -182,9 +253,35 @@ export default function MyBookings() {
     ].filter((section) => section.bookings.length > 0);
   }, [bookings, filter]);
 
+  // Shared by the card actions and the detail modal's footer -- a "Request Cancellation" button
+  // once eligible, the existing request's status once one has been submitted, or the 24-hour
+  // cutoff explanation once it's too late to request one (per spec: "Do NOT show an active
+  // cancellation button... instead display [why]").
+  function renderCancellationAction(booking: Booking) {
+    const existingRequest = cancellationsByBooking[booking.id];
+    if (existingRequest) return null; // Shown as a Tag instead (see the title-row Tag below).
+
+    const isPaidAndActive = booking.status === 'CONFIRMED' && booking.paymentStatus === 'PAID';
+    if (!isPaidAndActive) return null;
+
+    if (isMoreThan24HoursBeforeBooking(booking.bookingDate)) {
+      return (
+        <Button danger onClick={() => openCancellationRequestModal(booking)}>
+          Request Cancellation
+        </Button>
+      );
+    }
+    return (
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        Cancellation is no longer available because this booking is within 24 hours of the scheduled date.
+      </Typography.Text>
+    );
+  }
+
   function renderBookingCard(booking: Booking) {
     const canManagePayment = booking.status !== 'CANCELLED' && booking.paymentStatus !== 'PAID';
     const canCancel = booking.status === 'PENDING' && booking.paymentStatus === 'UNPAID';
+    const cancellationRequest = cancellationsByBooking[booking.id];
     return (
       <Card key={booking.id} style={{ borderRadius: 12 }} styles={{ body: { padding: 16 } }}>
         <Row gutter={16} align="middle" wrap>
@@ -225,6 +322,11 @@ export default function MyBookings() {
               <Tag color={PAYMENT_STATUS_COLOR[booking.paymentStatus] ?? 'default'} style={{ marginInlineEnd: 0 }}>
                 {booking.paymentStatus}
               </Tag>
+              {cancellationRequest && (
+                <Tag color={CANCELLATION_STATUS_COLOR[cancellationRequest.status]} style={{ marginInlineEnd: 0 }}>
+                  {CANCELLATION_STATUS_LABEL[cancellationRequest.status]}
+                </Tag>
+              )}
             </Space>
             <div>
               <Typography.Text type="secondary" style={{ fontSize: 13 }}>
@@ -275,6 +377,7 @@ export default function MyBookings() {
                     onSubmitted={fetchMyReviews}
                   />
                 )}
+                {renderCancellationAction(booking)}
               </Space>
             </Space>
           </Col>
@@ -453,6 +556,7 @@ export default function MyBookings() {
                 onSubmitted={fetchMyReviews}
               />
             )}
+            {detailsTarget && renderCancellationAction(detailsTarget)}
             {detailsTarget && (
               <Link to={`/tours/${detailsTarget.tourId}`}>
                 <Button>View Tour Page</Button>
@@ -489,7 +593,93 @@ export default function MyBookings() {
                 {reviewsByTour[detailsTarget.tourId] ? 'Submitted' : 'Not Submitted'}
               </Descriptions.Item>
             )}
+            {cancellationsByBooking[detailsTarget.id] && (
+              <Descriptions.Item label="Cancellation Request">
+                <Space orientation="vertical" size={4} style={{ width: '100%' }}>
+                  <Tag color={CANCELLATION_STATUS_COLOR[cancellationsByBooking[detailsTarget.id].status]} style={{ width: 'fit-content' }}>
+                    {CANCELLATION_STATUS_LABEL[cancellationsByBooking[detailsTarget.id].status]}
+                  </Tag>
+                  {cancellationsByBooking[detailsTarget.id].status === 'REJECTED' && (
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      Reason: {cancellationsByBooking[detailsTarget.id].rejectionReason}
+                    </Typography.Text>
+                  )}
+                  {cancellationsByBooking[detailsTarget.id].status === 'REFUNDED' && (
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      {formatCurrency(cancellationsByBooking[detailsTarget.id].refundAmount)} refunded via{' '}
+                      {cancellationsByBooking[detailsTarget.id].refundMethodName}.
+                    </Typography.Text>
+                  )}
+                </Space>
+              </Descriptions.Item>
+            )}
           </Descriptions>
+        )}
+      </Modal>
+
+      <Modal
+        title={cancellationRequestTarget ? `Request Cancellation — ${cancellationRequestTarget.tourNameSnapshot}` : 'Request Cancellation'}
+        open={cancellationRequestTarget !== null}
+        onCancel={() => setCancellationRequestTarget(null)}
+        footer={
+          <Space>
+            <Button onClick={() => setCancellationRequestTarget(null)}>Go Back</Button>
+            <Popconfirm
+              title="Submit this cancellation request?"
+              description="Your refund request will be reviewed by our administrator. Submitting this request does not immediately issue a refund."
+              okText="Submit Request"
+              cancelText="Review Again"
+              onConfirm={handleSubmitCancellationRequest}
+            >
+              <Button type="primary" danger loading={submittingCancellationRequest}>
+                Submit Cancellation Request
+              </Button>
+            </Popconfirm>
+          </Space>
+        }
+      >
+        {cancellationRequestTarget && (
+          <Form form={cancellationForm} layout="vertical" initialValues={{ reasonCategory: CANCELLATION_REASON_OPTIONS[0] }}>
+            <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
+              <Descriptions.Item label="Booking">JDM-{cancellationRequestTarget.id}</Descriptions.Item>
+              <Descriptions.Item label="Tour">{cancellationRequestTarget.tourNameSnapshot}</Descriptions.Item>
+              <Descriptions.Item label="Booking Date">
+                {new Date(cancellationRequestTarget.bookingDate).toLocaleDateString('en-US', { dateStyle: 'medium', timeZone: 'UTC' })}
+              </Descriptions.Item>
+              <Descriptions.Item label="Refund Amount">{formatCurrency(cancellationRequestTarget.totalPrice)}</Descriptions.Item>
+            </Descriptions>
+
+            <Form.Item name="reasonCategory" label="Reason for Cancellation" rules={[{ required: true }]}>
+              <Select options={CANCELLATION_REASON_OPTIONS.map((r) => ({ value: r, label: r }))} />
+            </Form.Item>
+            <Form.Item
+              noStyle
+              shouldUpdate={(prev, next) => prev.reasonCategory !== next.reasonCategory}
+            >
+              {({ getFieldValue }) =>
+                getFieldValue('reasonCategory') === 'Other' && (
+                  <Form.Item name="otherReason" label="Please provide details" rules={[{ required: true, message: 'Please provide details.' }]}>
+                    <Input.TextArea rows={3} maxLength={2000} />
+                  </Form.Item>
+                )
+              }
+            </Form.Item>
+
+            <Form.Item name="refundMethodId" label="Refund Method" rules={[{ required: true, message: 'Please select a refund method.' }]}>
+              <Select
+                placeholder="Select a refund method"
+                options={refundMethods.map((m) => ({ value: m.id, label: m.name }))}
+                notFoundContent={refundMethods.length === 0 ? 'Loading refund methods...' : undefined}
+              />
+            </Form.Item>
+            <Form.Item
+              name="refundDestination"
+              label="Refund Account / Email"
+              rules={[{ required: true, message: 'Please provide your refund destination details.' }]}
+            >
+              <Input placeholder="e.g. your PayPal email, or bank name / account name / account number" />
+            </Form.Item>
+          </Form>
         )}
       </Modal>
     </div>

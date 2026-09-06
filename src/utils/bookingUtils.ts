@@ -125,3 +125,17 @@ export function formatTourTime(time: string): string {
   const parsed = dayjs(`2000-01-01T${time}`);
   return parsed.isValid() ? parsed.format('h:mm A') : time;
 }
+
+// No per-booking time-of-day is stored (customers only ever pick a date), so "the scheduled
+// booking time" for the paid-cancellation 24-hour cutoff is always this fixed JST slot -- mirrors
+// DEFAULT_BOOKING_TIME_JST in the backend's src/lib/dateTime.ts exactly. UX-only: the backend
+// re-enforces this regardless of what this function returns.
+const DEFAULT_BOOKING_TIME_JST = '09:00';
+
+/** True once more than 24 hours remain before `bookingDate` (a `YYYY-MM-DD` string) starts, JST.
+ *  Exactly 24 hours counts as NOT eligible (strict `>`), matching the backend's enforcement. */
+export function isMoreThan24HoursBeforeBooking(bookingDate: string): boolean {
+  const dateOnly = bookingDate.slice(0, 10);
+  const start = new Date(`${dateOnly}T${DEFAULT_BOOKING_TIME_JST}:00+09:00`);
+  return start.getTime() - Date.now() > 24 * 60 * 60 * 1000;
+}

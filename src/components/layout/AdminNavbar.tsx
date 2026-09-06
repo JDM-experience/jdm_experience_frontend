@@ -23,7 +23,13 @@ export function AdminNavbar() {
   const navLinks = useMemo(
     () => [
       ...BASE_NAV_LINKS,
-      ...(isStaff ? [{ key: '/admin/users', label: 'Users' }, { key: '/admin/settings', label: 'Website Settings' }] : []),
+      ...(isStaff
+        ? [
+            { key: '/admin/cancellation-requests', label: 'Cancellation Requests' },
+            { key: '/admin/users', label: 'Users' },
+            { key: '/admin/settings', label: 'Website Settings' },
+          ]
+        : []),
       ...(isSuperAdmin ? [{ key: '/admin/payment-methods', label: 'Payment Methods' }] : []),
     ],
     [isStaff, isSuperAdmin],
