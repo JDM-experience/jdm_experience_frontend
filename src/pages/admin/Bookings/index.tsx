@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Button, Empty, Image, Modal, Popconfirm, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, DatePicker, Empty, Image, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import dayjs from 'dayjs';
 import { CheckCircleOutlined, CloseCircleOutlined, FileImageOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import {
@@ -11,7 +12,17 @@ import {
 } from '@/services/bookingService';
 import { formatDateTime } from '@/utils/formatters';
 import { getErrorMessage } from '@/utils/errors';
-import type { Booking, BookingPaymentStatus, BookingStatus, PaymentProof } from '@/types/booking';
+import type { Booking, BookingListFilter, BookingPaymentStatus, BookingSortBy, BookingStatus, PaymentProof } from '@/types/booking';
+
+const SORT_OPTIONS: { value: string; label: string; sortBy: BookingSortBy; sortOrder: 'asc' | 'desc' }[] = [
+  { value: 'created_desc', label: 'Newest First', sortBy: 'createdAt', sortOrder: 'desc' },
+  { value: 'created_asc', label: 'Oldest First', sortBy: 'createdAt', sortOrder: 'asc' },
+  { value: 'date_asc', label: 'Tour Date (Earliest)', sortBy: 'bookingDate', sortOrder: 'asc' },
+  { value: 'date_desc', label: 'Tour Date (Latest)', sortBy: 'bookingDate', sortOrder: 'desc' },
+  { value: 'customer_asc', label: 'Customer (A-Z)', sortBy: 'customerName', sortOrder: 'asc' },
+  { value: 'tour_asc', label: 'Tour (A-Z)', sortBy: 'tourName', sortOrder: 'asc' },
+  { value: 'amount_desc', label: 'Amount (High to Low)', sortBy: 'totalPrice', sortOrder: 'desc' },
+];
 
 const STATUS_COLOR: Record<BookingStatus, string> = {
   PENDING: 'gold',
@@ -37,17 +48,33 @@ export default function AdminBookings() {
   const [proofs, setProofs] = useState<PaymentProof[]>([]);
   const [proofsLoading, setProofsLoading] = useState(false);
 
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'' | 'PENDING' | 'CANCELLED'>('');
+  const [dateRange, setDateRange] = useState<[string, string] | null>(null);
+  const [sortKey, setSortKey] = useState(SORT_OPTIONS[0].value);
+
   function fetchBookings() {
     setLoading(true);
-    listAllBookings()
-      // Once confirmed, a booking moves to the Reservation Management page (/admin/orders) -- this
-      // page is only the incoming-request queue (awaiting review) plus a record of rejections.
+    const sort = SORT_OPTIONS.find((o) => o.value === sortKey) ?? SORT_OPTIONS[0];
+    const filter: BookingListFilter = {
+      search: search || undefined,
+      status: statusFilter || undefined,
+      dateFrom: dateRange?.[0],
+      dateTo: dateRange?.[1],
+      sortBy: sort.sortBy,
+      sortOrder: sort.sortOrder,
+    };
+    listAllBookings(filter)
+      // Search/filter/sort are all performed by the backend query above -- this is just the fixed
+      // "which two statuses belong on this page" rule (confirmed bookings live on Reservation
+      // Management instead), kept as a client-side safety net even though `statusFilter` above
+      // already only ever offers PENDING/CANCELLED.
       .then((rows) => setBookings(rows.filter((b) => b.status === 'PENDING' || b.status === 'CANCELLED')))
       .catch((error) => message.error(getErrorMessage(error, 'Unable to load bookings.')))
       .finally(() => setLoading(false));
   }
 
-  useEffect(fetchBookings, []);
+  useEffect(fetchBookings, [search, statusFilter, dateRange, sortKey]);
 
   function openProofModal(booking: Booking) {
     setProofModalBooking(booking);
@@ -149,21 +176,50 @@ export default function AdminBookings() {
     },
   ];
 
-  if (loading) return <PageSpinner />;
-
   return (
     <div>
       <Typography.Title level={3} style={{ marginBottom: 24 }}>
         Bookings
       </Typography.Title>
 
-      <Table
-        columns={columns}
-        dataSource={bookings}
-        rowKey="id"
-        scroll={{ x: true }}
-        pagination={{ pageSize: 20, showSizeChanger: true, hideOnSinglePage: true }}
-      />
+      <Space wrap style={{ marginBottom: 16 }}>
+        <Input.Search
+          placeholder="Search reference, customer, or tour..."
+          allowClear
+          style={{ width: 260 }}
+          defaultValue={search}
+          onSearch={setSearch}
+        />
+        <Select
+          style={{ width: 160 }}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: '', label: 'All Statuses' },
+            { value: 'PENDING', label: 'Pending' },
+            { value: 'CANCELLED', label: 'Cancelled' },
+          ]}
+        />
+        <DatePicker.RangePicker
+          value={dateRange ? [dayjs(dateRange[0]), dayjs(dateRange[1])] : null}
+          onChange={(dates) =>
+            setDateRange(dates && dates[0] && dates[1] ? [dates[0].format('YYYY-MM-DD'), dates[1].format('YYYY-MM-DD')] : null)
+          }
+        />
+        <Select style={{ width: 200 }} value={sortKey} onChange={setSortKey} options={SORT_OPTIONS} />
+      </Space>
+
+      {loading ? (
+        <PageSpinner />
+      ) : (
+        <Table
+          columns={columns}
+          dataSource={bookings}
+          rowKey="id"
+          scroll={{ x: true }}
+          pagination={{ pageSize: 20, showSizeChanger: true, hideOnSinglePage: true }}
+        />
+      )}
 
       <Modal
         title={proofModalBooking ? `Payment Proof — JDM-${proofModalBooking.id}` : 'Payment Proof'}

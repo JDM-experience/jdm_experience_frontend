@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import { Button, Card, Col, DatePicker, Image, Input, InputNumber, Modal, Radio, Row, Space, Steps, Tag, Typography, Upload, message } from 'antd';
+import { Button, Card, Col, DatePicker, Image, Input, InputNumber, Modal, Popconfirm, Radio, Row, Space, Steps, Tag, Typography, Upload, message } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -14,7 +14,7 @@ import { CurrencyConverter } from '@/components/common/CurrencyConverter';
 import { TourReviews } from '@/components/common/TourReviews';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBookedDates, getTourById } from '@/services/tourService';
-import { getMyBookings, submitPaymentProof } from '@/services/bookingService';
+import { cancelBooking, getMyBookings, submitPaymentProof } from '@/services/bookingService';
 import { listPaymentMethods } from '@/services/paymentMethodService';
 import { ALLOWED_IMAGE_TYPES, uploadPaymentProofImage } from '@/services/uploadService';
 import { isBookingClosedForDate, tourAvailabilityStatus } from '@/utils/bookingUtils';
@@ -82,11 +82,25 @@ export default function TourDetail() {
   const [myBookingsForTour, setMyBookingsForTour] = useState<Booking[]>([]);
   const [proofTarget, setProofTarget] = useState<Booking | null>(null);
   const [uploadingProof, setUploadingProof] = useState(false);
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
 
   function fetchMyBookingsForTour() {
-    getMyBookings()
-      .then((bookings) => setMyBookingsForTour(bookings.filter((b) => b.tourId === tourId)))
+    getMyBookings({ tourId })
+      .then(setMyBookingsForTour)
       .catch(() => undefined); // Non-fatal — this section just won't show.
+  }
+
+  async function handleCancelBooking(id: number) {
+    setCancellingId(id);
+    try {
+      await cancelBooking(id);
+      message.success('Booking cancelled.');
+      fetchMyBookingsForTour();
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Unable to cancel this booking. Please try again.'));
+    } finally {
+      setCancellingId(null);
+    }
   }
 
   async function handleUploadProof(file: File) {
@@ -258,11 +272,27 @@ export default function TourDetail() {
                           {booking.participants} participant{booking.participants === 1 ? '' : 's'} · {formatCurrency(booking.totalPrice)}
                         </Typography.Text>
                       </div>
-                      {canManagePayment && (
-                        <Button size="small" style={{ marginTop: 8 }} icon={<UploadOutlined />} onClick={() => setProofTarget(booking)}>
-                          {booking.paymentStatus === 'UNPAID' ? 'Upload Proof' : 'Replace Proof'}
-                        </Button>
-                      )}
+                      <Space style={{ marginTop: 8 }}>
+                        {canManagePayment && (
+                          <Button size="small" icon={<UploadOutlined />} onClick={() => setProofTarget(booking)}>
+                            {booking.paymentStatus === 'UNPAID' ? 'Upload Proof' : 'Replace Proof'}
+                          </Button>
+                        )}
+                        {booking.status === 'PENDING' && booking.paymentStatus === 'UNPAID' && (
+                          <Popconfirm
+                            title="Cancel this booking?"
+                            description="This cannot be undone."
+                            okText="Cancel Booking"
+                            cancelText="Keep Booking"
+                            okButtonProps={{ danger: true }}
+                            onConfirm={() => handleCancelBooking(booking.id)}
+                          >
+                            <Button size="small" danger loading={cancellingId === booking.id}>
+                              Cancel Booking
+                            </Button>
+                          </Popconfirm>
+                        )}
+                      </Space>
                     </div>
                   );
                 })}

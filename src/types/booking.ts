@@ -54,3 +54,16 @@ export interface SubmitPaymentProofInput {
   fileName: string;
   fileType: string;
 }
+
+export type BookingSortBy = 'createdAt' | 'bookingDate' | 'customerName' | 'tourName' | 'status' | 'paymentStatus' | 'totalPrice';
+
+export interface BookingListFilter {
+  search?: string;
+  status?: BookingStatus;
+  paymentStatus?: BookingPaymentStatus;
+  tourId?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  sortBy?: BookingSortBy;
+  sortOrder?: 'asc' | 'desc';
+}

@@ -1,12 +1,23 @@
 import { useEffect, useState } from 'react';
-import { Button, Empty, Image, Modal, Popconfirm, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, DatePicker, Empty, Image, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import dayjs from 'dayjs';
 import { FileImageOutlined, FlagOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { completeBooking, getPaymentProofs, listAllBookings } from '@/services/bookingService';
 import { formatDateTime } from '@/utils/formatters';
 import { getErrorMessage } from '@/utils/errors';
-import type { Booking, BookingPaymentStatus, BookingStatus, PaymentProof } from '@/types/booking';
+import type { Booking, BookingListFilter, BookingPaymentStatus, BookingSortBy, BookingStatus, PaymentProof } from '@/types/booking';
+
+const SORT_OPTIONS: { value: string; label: string; sortBy: BookingSortBy; sortOrder: 'asc' | 'desc' }[] = [
+  { value: 'created_desc', label: 'Newest First', sortBy: 'createdAt', sortOrder: 'desc' },
+  { value: 'created_asc', label: 'Oldest First', sortBy: 'createdAt', sortOrder: 'asc' },
+  { value: 'date_asc', label: 'Tour Date (Earliest)', sortBy: 'bookingDate', sortOrder: 'asc' },
+  { value: 'date_desc', label: 'Tour Date (Latest)', sortBy: 'bookingDate', sortOrder: 'desc' },
+  { value: 'customer_asc', label: 'Customer (A-Z)', sortBy: 'customerName', sortOrder: 'asc' },
+  { value: 'tour_asc', label: 'Tour (A-Z)', sortBy: 'tourName', sortOrder: 'asc' },
+  { value: 'amount_desc', label: 'Amount (High to Low)', sortBy: 'totalPrice', sortOrder: 'desc' },
+];
 
 const STATUS_COLOR: Record<BookingStatus, string> = {
   PENDING: 'gold',
@@ -35,15 +46,29 @@ export default function AdminReservations() {
   const [proofs, setProofs] = useState<PaymentProof[]>([]);
   const [proofsLoading, setProofsLoading] = useState(false);
 
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'' | 'CONFIRMED' | 'COMPLETED'>('');
+  const [dateRange, setDateRange] = useState<[string, string] | null>(null);
+  const [sortKey, setSortKey] = useState(SORT_OPTIONS[0].value);
+
   function fetchReservations() {
     setLoading(true);
-    listAllBookings()
+    const sort = SORT_OPTIONS.find((o) => o.value === sortKey) ?? SORT_OPTIONS[0];
+    const filter: BookingListFilter = {
+      search: search || undefined,
+      status: statusFilter || undefined,
+      dateFrom: dateRange?.[0],
+      dateTo: dateRange?.[1],
+      sortBy: sort.sortBy,
+      sortOrder: sort.sortOrder,
+    };
+    listAllBookings(filter)
       .then((rows) => setBookings(rows.filter((b) => b.status === 'CONFIRMED' || b.status === 'COMPLETED')))
       .catch((error) => message.error(getErrorMessage(error, 'Unable to load reservations.')))
       .finally(() => setLoading(false));
   }
 
-  useEffect(fetchReservations, []);
+  useEffect(fetchReservations, [search, statusFilter, dateRange, sortKey]);
 
   function openProofModal(booking: Booking) {
     setProofModalBooking(booking);
@@ -132,16 +157,43 @@ export default function AdminReservations() {
     },
   ];
 
-  if (loading) return <PageSpinner />;
-
   return (
     <div>
       <Typography.Title level={3} style={{ marginBottom: 24 }}>
         Reservation Management
       </Typography.Title>
 
-      {bookings.length === 0 ? (
-        <Empty description="No confirmed reservations yet." />
+      <Space wrap style={{ marginBottom: 16 }}>
+        <Input.Search
+          placeholder="Search reference, customer, or tour..."
+          allowClear
+          style={{ width: 260 }}
+          defaultValue={search}
+          onSearch={setSearch}
+        />
+        <Select
+          style={{ width: 160 }}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: '', label: 'All' },
+            { value: 'CONFIRMED', label: 'Confirmed' },
+            { value: 'COMPLETED', label: 'Completed' },
+          ]}
+        />
+        <DatePicker.RangePicker
+          value={dateRange ? [dayjs(dateRange[0]), dayjs(dateRange[1])] : null}
+          onChange={(dates) =>
+            setDateRange(dates && dates[0] && dates[1] ? [dates[0].format('YYYY-MM-DD'), dates[1].format('YYYY-MM-DD')] : null)
+          }
+        />
+        <Select style={{ width: 200 }} value={sortKey} onChange={setSortKey} options={SORT_OPTIONS} />
+      </Space>
+
+      {loading ? (
+        <PageSpinner />
+      ) : bookings.length === 0 ? (
+        <Empty description="No confirmed reservations found." />
       ) : (
         <Table
           columns={columns}

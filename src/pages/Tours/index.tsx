@@ -42,7 +42,10 @@ export default function Tours() {
     let cancelled = false;
     setLoading(true);
     const { sortBy, sortOrder } = SORT_TO_PARAMS[sort || 'az'];
-    listTours({ status: 'AVAILABLE', search: search || undefined, sortBy, sortOrder })
+    // Unavailable / under-maintenance tours stay visible here (with their status badge on the
+    // card) rather than being hidden -- only AVAILABLE tours can actually be booked, enforced on
+    // the Tour Details page and by the backend, not by hiding the tour from this list.
+    listTours({ search: search || undefined, sortBy, sortOrder })
       .then((results) => {
         if (!cancelled) setTours(results);
       })
@@ -82,7 +85,7 @@ export default function Tours() {
         }}
       >
         <Typography.Title level={4} style={{ margin: 0 }}>
-          Available Tours
+          Our Tours
         </Typography.Title>
 
         <Space wrap>

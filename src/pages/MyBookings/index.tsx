@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Card, Col, Descriptions, Modal, Row, Segmented, Space, Tag, Typography, Upload, message } from 'antd';
+import { Button, Card, Col, Descriptions, Input, Modal, Popconfirm, Row, Segmented, Space, Tag, Typography, Upload, message } from 'antd';
 import {
   CalendarOutlined,
   CheckCircleOutlined,
@@ -14,7 +14,7 @@ import { PageSpinner } from '@/components/common/PageSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ProductImage } from '@/components/common/ProductImage';
 import { useAuth } from '@/contexts/AuthContext';
-import { getMyBookings, submitPaymentProof } from '@/services/bookingService';
+import { cancelBooking, getMyBookings, submitPaymentProof } from '@/services/bookingService';
 import { getTourById } from '@/services/tourService';
 import { ALLOWED_IMAGE_TYPES, uploadPaymentProofImage } from '@/services/uploadService';
 import { formatCurrency } from '@/utils/formatters';
@@ -65,9 +65,14 @@ export default function MyBookings() {
   const [uploadingProof, setUploadingProof] = useState(false);
   const [detailsTarget, setDetailsTarget] = useState<Booking | null>(null);
   const [filter, setFilter] = useState<FilterKey>('ALL');
+  const [search, setSearch] = useState('');
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
 
-  function fetchBookings() {
-    getMyBookings()
+  function fetchBookings(searchTerm = search) {
+    setLoading(true);
+    // The search box goes through the backend GET API (scoped server-side to this customer's own
+    // bookings regardless of the search term) -- never a client-side filter of a fixed local list.
+    getMyBookings(searchTerm ? { search: searchTerm } : undefined)
       .then(async (data) => {
         setBookings(data);
         const uniqueTourIds = [...new Set(data.map((b) => b.tourId))];
@@ -110,6 +115,20 @@ export default function MyBookings() {
     return Upload.LIST_IGNORE;
   }
 
+  async function handleCancel(id: number) {
+    setCancellingId(id);
+    try {
+      await cancelBooking(id);
+      message.success('Booking cancelled.');
+      setDetailsTarget(null);
+      fetchBookings();
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Unable to cancel this booking. Please try again.'));
+    } finally {
+      setCancellingId(null);
+    }
+  }
+
   const stats = useMemo(
     () => ({
       upcoming: bookings.filter((b) => b.status === 'PENDING' || b.status === 'CONFIRMED').length,
@@ -148,6 +167,7 @@ export default function MyBookings() {
 
   function renderBookingCard(booking: Booking) {
     const canManagePayment = booking.status !== 'CANCELLED' && booking.paymentStatus !== 'PAID';
+    const canCancel = booking.status === 'PENDING' && booking.paymentStatus === 'UNPAID';
     return (
       <Card key={booking.id} style={{ borderRadius: 12 }} styles={{ body: { padding: 16 } }}>
         <Row gutter={16} align="middle" wrap>
@@ -209,12 +229,26 @@ export default function MyBookings() {
               <Typography.Title level={4} style={{ margin: 0 }}>
                 {formatCurrency(booking.totalPrice)}
               </Typography.Title>
-              <Space>
+              <Space wrap>
                 <Button onClick={() => setDetailsTarget(booking)}>View Reservation</Button>
                 {canManagePayment && (
                   <Button type="primary" icon={<UploadOutlined />} onClick={() => setProofTarget(booking)}>
                     {booking.paymentStatus === 'UNPAID' ? 'Upload Proof' : 'Replace Proof'}
                   </Button>
+                )}
+                {canCancel && (
+                  <Popconfirm
+                    title="Cancel this booking?"
+                    description="This cannot be undone. You'll need to make a new booking if you change your mind."
+                    okText="Cancel Booking"
+                    cancelText="Keep Booking"
+                    okButtonProps={{ danger: true }}
+                    onConfirm={() => handleCancel(booking.id)}
+                  >
+                    <Button danger loading={cancellingId === booking.id}>
+                      Cancel Booking
+                    </Button>
+                  </Popconfirm>
                 )}
               </Space>
             </Space>
@@ -234,7 +268,10 @@ export default function MyBookings() {
     );
   }
 
-  if (bookings.length === 0) {
+  // Only the true "never booked anything" case gets the full-page onboarding empty state -- a
+  // search that happens to match nothing still needs the rest of the page (search box included)
+  // to stay on screen so the customer can clear it, handled by EMPTY_FILTER_MESSAGE below instead.
+  if (!search && bookings.length === 0) {
     return (
       <div style={{ padding: '80px 24px' }}>
         <EmptyState title="You have no reservations yet." actionText="Browse Tours" actionTo="/tours" />
@@ -286,17 +323,28 @@ export default function MyBookings() {
         ))}
       </Row>
 
-      <Segmented
-        style={{ marginBottom: 20 }}
-        value={filter}
-        onChange={(value) => setFilter(value as FilterKey)}
-        options={[
-          { label: 'All Bookings', value: 'ALL' },
-          { label: 'Upcoming', value: 'UPCOMING' },
-          { label: 'Completed', value: 'COMPLETED' },
-          { label: 'Cancelled', value: 'CANCELLED' },
-        ]}
-      />
+      <Space wrap style={{ marginBottom: 20, width: '100%', justifyContent: 'space-between' }}>
+        <Segmented
+          value={filter}
+          onChange={(value) => setFilter(value as FilterKey)}
+          options={[
+            { label: 'All Bookings', value: 'ALL' },
+            { label: 'Upcoming', value: 'UPCOMING' },
+            { label: 'Completed', value: 'COMPLETED' },
+            { label: 'Cancelled', value: 'CANCELLED' },
+          ]}
+        />
+        <Input.Search
+          placeholder="Search by tour or reference..."
+          allowClear
+          style={{ width: 260 }}
+          defaultValue={search}
+          onSearch={(value) => {
+            setSearch(value);
+            fetchBookings(value);
+          }}
+        />
+      </Space>
 
       {groupedSections ? (
         groupedSections.length === 0 ? (
@@ -345,7 +393,7 @@ export default function MyBookings() {
         open={detailsTarget !== null}
         onCancel={() => setDetailsTarget(null)}
         footer={
-          <Space>
+          <Space wrap>
             {detailsTarget && detailsTarget.status !== 'CANCELLED' && detailsTarget.paymentStatus !== 'PAID' && (
               <Button
                 type="primary"
@@ -357,6 +405,20 @@ export default function MyBookings() {
               >
                 {detailsTarget.paymentStatus === 'UNPAID' ? 'Upload Proof' : 'Replace Proof'}
               </Button>
+            )}
+            {detailsTarget && detailsTarget.status === 'PENDING' && detailsTarget.paymentStatus === 'UNPAID' && (
+              <Popconfirm
+                title="Cancel this booking?"
+                description="This cannot be undone. You'll need to make a new booking if you change your mind."
+                okText="Cancel Booking"
+                cancelText="Keep Booking"
+                okButtonProps={{ danger: true }}
+                onConfirm={() => handleCancel(detailsTarget.id)}
+              >
+                <Button danger loading={cancellingId === detailsTarget.id}>
+                  Cancel Booking
+                </Button>
+              </Popconfirm>
             )}
             {detailsTarget && (
               <Link to={`/tours/${detailsTarget.tourId}`}>
