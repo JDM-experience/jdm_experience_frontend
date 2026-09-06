@@ -22,14 +22,25 @@ a {
   color: inherit;
 }
 
-/* Header search box: keep it a low, quiet pill — antd's default focus/hover ring on a black
-   primary theme renders as a thick black outline that reads as a design glitch here. Height is
-   pinned explicitly since AutoComplete's own sizing doesn't always reach the inner Input. */
+/* Header search box: a deliberate, low, quiet pill sitting on the dark navbar. The "filled"
+   input variant's own computed background doesn't read well against #0F1117, so it's pinned
+   explicitly here instead, along with placeholder/text/caret colors (a plain <input> doesn't
+   otherwise know it's sitting on a dark surface). Height is pinned explicitly since
+   AutoComplete's own sizing doesn't always reach the inner Input. */
 .jdm-nav-search .ant-input-affix-wrapper {
+  background: #1c2333 !important;
+  border: 1px solid #303849;
   border-radius: 20px;
   height: 28px;
   padding-top: 0;
   padding-bottom: 0;
+}
+.jdm-nav-search .ant-input-affix-wrapper .ant-input {
+  background: transparent !important;
+  color: #ffffff;
+}
+.jdm-nav-search .ant-input-affix-wrapper .ant-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
 }
 .jdm-nav-search.ant-select-single .ant-select-selector {
   height: 28px;
@@ -37,8 +48,32 @@ a {
 .jdm-nav-search .ant-input-affix-wrapper:hover,
 .jdm-nav-search .ant-input-affix-wrapper:focus,
 .jdm-nav-search .ant-input-affix-wrapper-focused {
-  border-color: #303849 !important;
+  border-color: #e03d36 !important;
   box-shadow: none !important;
+}
+
+/* Same dark pill treatment for the mobile drawer's search box, without the desktop pill's fixed
+   28px height (this one uses the default, larger Input.Search size). */
+.jdm-drawer-search .ant-input-affix-wrapper {
+  background: #1c2333 !important;
+  border: 1px solid #303849;
+  border-radius: 20px;
+}
+.jdm-drawer-search .ant-input-affix-wrapper .ant-input {
+  background: transparent !important;
+  color: #ffffff;
+}
+.jdm-drawer-search .ant-input-affix-wrapper .ant-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+.jdm-drawer-search .ant-input-affix-wrapper:hover,
+.jdm-drawer-search .ant-input-affix-wrapper:focus,
+.jdm-drawer-search .ant-input-affix-wrapper-focused {
+  border-color: #e03d36 !important;
+  box-shadow: none !important;
+}
+.jdm-drawer-search .ant-input-group-addon .ant-btn {
+  border-radius: 0 20px 20px 0 !important;
 }
 
 /* Admin-authored rich text (About Us / Policy content) -- default browser list styling is

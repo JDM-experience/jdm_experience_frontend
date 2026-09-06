@@ -232,6 +232,7 @@ export function Navbar() {
 
       <Drawer title="Menu" placement="right" onClose={() => setDrawerOpen(false)} open={drawerOpen}>
         <Input.Search
+          className="jdm-drawer-search"
           variant="filled"
           placeholder="Search tours..."
           onSearch={(value) => {
