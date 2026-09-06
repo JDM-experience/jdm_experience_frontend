@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Card, Col, Modal, Row, Segmented, Space, Tag, Typography, Upload, message } from 'antd';
+import { Button, Card, Col, Descriptions, Modal, Row, Segmented, Space, Tag, Typography, Upload, message } from 'antd';
 import {
   CalendarOutlined,
   CheckCircleOutlined,
@@ -63,6 +63,7 @@ export default function MyBookings() {
   const [loading, setLoading] = useState(true);
   const [proofTarget, setProofTarget] = useState<Booking | null>(null);
   const [uploadingProof, setUploadingProof] = useState(false);
+  const [detailsTarget, setDetailsTarget] = useState<Booking | null>(null);
   const [filter, setFilter] = useState<FilterKey>('ALL');
 
   function fetchBookings() {
@@ -209,9 +210,7 @@ export default function MyBookings() {
                 {formatCurrency(booking.totalPrice)}
               </Typography.Title>
               <Space>
-                <Link to={`/tours/${booking.tourId}`}>
-                  <Button>View Tour</Button>
-                </Link>
+                <Button onClick={() => setDetailsTarget(booking)}>View Reservation</Button>
                 {canManagePayment && (
                   <Button type="primary" icon={<UploadOutlined />} onClick={() => setProofTarget(booking)}>
                     {booking.paymentStatus === 'UNPAID' ? 'Upload Proof' : 'Replace Proof'}
@@ -339,6 +338,59 @@ export default function MyBookings() {
             Choose Image
           </Button>
         </Upload>
+      </Modal>
+
+      <Modal
+        title={detailsTarget ? `Reservation — ${detailsTarget.tourNameSnapshot}` : 'Reservation'}
+        open={detailsTarget !== null}
+        onCancel={() => setDetailsTarget(null)}
+        footer={
+          <Space>
+            {detailsTarget && detailsTarget.status !== 'CANCELLED' && detailsTarget.paymentStatus !== 'PAID' && (
+              <Button
+                type="primary"
+                icon={<UploadOutlined />}
+                onClick={() => {
+                  setProofTarget(detailsTarget);
+                  setDetailsTarget(null);
+                }}
+              >
+                {detailsTarget.paymentStatus === 'UNPAID' ? 'Upload Proof' : 'Replace Proof'}
+              </Button>
+            )}
+            {detailsTarget && (
+              <Link to={`/tours/${detailsTarget.tourId}`}>
+                <Button>View Tour Page</Button>
+              </Link>
+            )}
+            <Button onClick={() => setDetailsTarget(null)}>Close</Button>
+          </Space>
+        }
+      >
+        {detailsTarget && (
+          <Descriptions column={1} size="small" bordered>
+            <Descriptions.Item label="Reference">JDM-{detailsTarget.id}</Descriptions.Item>
+            <Descriptions.Item label="Tour">{detailsTarget.tourNameSnapshot}</Descriptions.Item>
+            <Descriptions.Item label="Date">
+              {new Date(detailsTarget.bookingDate).toLocaleDateString('en-US', { dateStyle: 'medium', timeZone: 'UTC' })}
+            </Descriptions.Item>
+            <Descriptions.Item label="Participants">{detailsTarget.participants}</Descriptions.Item>
+            <Descriptions.Item label="Status">
+              <Tag color={STATUS_COLOR[detailsTarget.status]} icon={STATUS_ICON[detailsTarget.status]}>
+                {detailsTarget.status}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Payment Status">
+              <Tag color={PAYMENT_STATUS_COLOR[detailsTarget.paymentStatus] ?? 'default'}>{detailsTarget.paymentStatus}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Total Price">{formatCurrency(detailsTarget.totalPrice)}</Descriptions.Item>
+            <Descriptions.Item label="Payment Method">{detailsTarget.paymentMethodName ?? '—'}</Descriptions.Item>
+            <Descriptions.Item label="Contact Name">{detailsTarget.customerName ?? '—'}</Descriptions.Item>
+            <Descriptions.Item label="Contact Email">{detailsTarget.customerEmail ?? '—'}</Descriptions.Item>
+            <Descriptions.Item label="Contact Phone">{detailsTarget.customerPhone ?? '—'}</Descriptions.Item>
+            <Descriptions.Item label="Special Requests">{detailsTarget.specialRequests ?? '—'}</Descriptions.Item>
+          </Descriptions>
+        )}
       </Modal>
     </div>
   );
