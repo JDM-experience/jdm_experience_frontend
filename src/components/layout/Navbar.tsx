@@ -173,7 +173,6 @@ export function Navbar() {
           {!isMobile && (
             <AutoComplete
               className="jdm-nav-search"
-              size="small"
               options={searchOptions}
               value={searchTerm}
               onChange={setSearchTerm}
@@ -183,7 +182,6 @@ export function Navbar() {
             >
               <Input
                 variant="filled"
-                size="small"
                 placeholder="Search tours..."
                 prefix={<SearchOutlined style={{ color: 'rgba(255,255,255,0.45)' }} />}
                 allowClear
