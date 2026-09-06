@@ -100,6 +100,42 @@ a {
   margin: 0 0 12px;
 }
 
+/* Tour cards: a subtle image zoom on hover -- polished, not excessive. Applied via CSS rather
+   than a JS-driven animation library since it's a single, simple transform. */
+.jdm-tour-card-image {
+  transition: transform 0.35s ease;
+}
+.jdm-tour-card:hover .jdm-tour-card-image {
+  transform: scale(1.06);
+}
+
+/* Featured Tours hero carousel (Home page) -- crossfades the active tour's image/overlay when
+   the arrows switch it, and staggers the grid cards in below on first load. */
+.jdm-hero-fade {
+  animation: jdm-fade-in 0.4s ease;
+}
+@keyframes jdm-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.jdm-stagger-in {
+  animation: jdm-rise-in 0.45s ease both;
+}
+@keyframes jdm-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media print {
   header,
   .ant-layout-header,

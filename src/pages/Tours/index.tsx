@@ -113,9 +113,11 @@ export default function Tours() {
         <EmptyState title="No tours found." />
       ) : (
         <Row gutter={[24, 24]}>
-          {tours.map((tour) => (
+          {tours.map((tour, i) => (
             <Col key={tour.id} xs={24} sm={12} md={8} lg={6}>
-              <TourCard tour={tour} />
+              <div className="jdm-stagger-in" style={{ animationDelay: `${(i % 8) * 60}ms`, height: '100%' }}>
+                <TourCard tour={tour} />
+              </div>
             </Col>
           ))}
         </Row>

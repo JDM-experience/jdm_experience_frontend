@@ -11,6 +11,7 @@ import {
   EnvironmentOutlined,
 } from '@ant-design/icons';
 import { TourCard } from '@/components/common/TourCard';
+import { FeaturedTourHero } from '@/components/common/FeaturedTourHero';
 import { TourItineraryMap } from '@/components/common/TourItineraryMap';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -119,13 +120,18 @@ export default function Home() {
         ) : tours.length === 0 ? (
           <EmptyState title="No tours found." />
         ) : (
-          <Row gutter={[24, 24]}>
-            {tours.map((tour) => (
-              <Col key={tour.id} xs={24} sm={12} md={8} lg={6}>
-                <TourCard tour={tour} />
-              </Col>
-            ))}
-          </Row>
+          <>
+            <FeaturedTourHero tours={tours.slice(0, Math.min(3, tours.length))} />
+            <Row gutter={[24, 24]}>
+              {tours.slice(Math.min(3, tours.length)).map((tour, i) => (
+                <Col key={tour.id} xs={24} sm={12} md={8} lg={6}>
+                  <div className="jdm-stagger-in" style={{ animationDelay: `${i * 60}ms`, height: '100%' }}>
+                    <TourCard tour={tour} />
+                  </div>
+                </Col>
+              ))}
+            </Row>
+          </>
         )}
       </section>
 
