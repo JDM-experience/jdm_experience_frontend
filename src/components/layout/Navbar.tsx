@@ -187,7 +187,7 @@ export function Navbar() {
               popupMatchSelectWidth={320}
             >
               <Input
-                variant="filled"
+                variant="borderless"
                 placeholder="Search tours..."
                 prefix={<SearchOutlined style={{ color: 'rgba(255,255,255,0.45)' }} />}
                 allowClear
@@ -236,7 +236,7 @@ export function Navbar() {
       <Drawer title="Menu" placement="right" onClose={() => setDrawerOpen(false)} open={drawerOpen}>
         <Input.Search
           className="jdm-drawer-search"
-          variant="filled"
+          variant="borderless"
           placeholder="Search tours..."
           onSearch={(value) => {
             goToSearch(value);

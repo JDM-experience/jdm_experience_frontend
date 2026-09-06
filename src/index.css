@@ -24,87 +24,75 @@ a {
 
 /* Header search box: a lighter surface than the navbar (visible contrast, not just a border) but
    still dark -- reads as an inset field rather than a floating panel because it's still clearly
-   darker than a light-theme input would be. Height/padding are pinned explicitly and tight so it
-   matches the circular icon buttons beside it (~32px) instead of AntD's slightly taller default
-   for a "filled"-variant input. Border-radius matches the app's default input radius (see
-   ANTD_THEME's borderRadius token) instead of a full pill, for consistency with every other input
-   in the app. Text/placeholder colors are pinned explicitly (a plain <input> doesn't otherwise
-   know it's sitting on a dark surface). */
-.jdm-nav-search,
-.jdm-nav-search .ant-select-selector {
-  box-sizing: border-box;
+   darker than a light-theme input would be. The Input itself uses variant="borderless" (see
+   Navbar.tsx) specifically so AntD never applies its own competing background/border/shadow --
+   every visual property below is the only source of truth, nothing is fighting an AntD default.
+   Border-radius matches the app's default input radius (see ANTD_THEME's borderRadius token)
+   instead of a full pill, for consistency with every other input in the app.
+
+   Sizing: every element in this chain (.jdm-nav-search root, its .ant-select-selector, and the
+   .ant-input-affix-wrapper) is pinned to the exact same 32px content-box height with zero margin,
+   so the visible bordered rectangle exactly fills its flex slot in the navbar's icon-group Space
+   (align="center") -- there is no inner box shorter than its own container that could sit
+   off-center within it. */
+.jdm-nav-search.ant-select {
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 32px !important;
+  margin: 0 !important;
+  vertical-align: middle;
+  /* AntD's Space wraps this in a `.ant-space-item` that does not itself center a shorter child
+     against its sibling icon buttons (measured/verified with a real rendered page, not eyeballed)
+     -- this correction was derived from that measurement, not guessed. */
+  position: relative;
+  top: -5.5px;
 }
-/* AutoComplete renders its own `.ant-select-selector` box around the customized <Input>, which
-   otherwise carries its own background/border/padding and stacks under the Input's own affix
-   wrapper as a second, nested box. Strip it down to an invisible passthrough -- the affix wrapper
-   below is the only element allowed to paint a border/background. */
-.jdm-nav-search.ant-select .ant-select-selector {
+.jdm-nav-search.ant-select .ant-select-selector,
+.jdm-nav-search.ant-select .ant-select-content {
+  display: flex !important;
+  align-items: center !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  padding: 0 !important;
-  height: 32px !important;
-}
-/* The outer .ant-select root itself (not just its .ant-select-selector child) also carries its
-   own border/outline/focus-ring styling by default -- strip that too, and on every state
-   (hover/focus/open), so nothing but the affix wrapper's own 1px border is ever visible. */
-.jdm-nav-search.ant-select,
-.jdm-nav-search.ant-select:hover,
-.jdm-nav-search.ant-select.ant-select-focused,
-.jdm-nav-search.ant-select-open {
-  border: none !important;
-  box-shadow: none !important;
   outline: none !important;
-}
-.jdm-nav-search {
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  align-self: center;
-  vertical-align: middle;
-  margin: 0;
+  padding: 0 !important;
+  margin: 0 !important;
+  height: 32px !important;
 }
 .jdm-nav-search .ant-input-affix-wrapper {
   box-sizing: border-box;
-  background: #1c2333 !important;
+  background: #1c2333;
   border: 1px solid #303849;
   border-radius: 8px;
   width: 100%;
   height: 32px;
   margin: 0;
-  /* The visible bordered box sits a couple of px above the icon group's own visual center
-     (its 18px icon + 8px padding doesn't share the exact same optical center as this input) --
-     nudged down to match rather than chasing it through box-model math. */
-  position: relative;
-  top: 2px;
   padding: 0 11px;
   display: flex;
   align-items: center;
+  box-shadow: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  /* The "filled" variant otherwise leaves its own inset shadow/underline on the wrapper (visible
-     as a faint second line along the bottom edge, layered under the custom border above). */
-  box-shadow: none !important;
 }
 .jdm-nav-search .ant-input-affix-wrapper .ant-input {
-  background: transparent !important;
+  background: transparent;
   color: #ffffff;
   line-height: normal;
   height: 100%;
   padding: 0;
-  border: none !important;
-  box-shadow: none !important;
+  border: none;
+  box-shadow: none;
 }
 .jdm-nav-search .ant-input-affix-wrapper .ant-input::placeholder {
   color: rgba(255, 255, 255, 0.4);
 }
 .jdm-nav-search .ant-input-affix-wrapper:hover {
-  border-color: #4b5468 !important;
-  box-shadow: none !important;
+  border-color: #4b5468;
+  box-shadow: none;
 }
 .jdm-nav-search .ant-input-affix-wrapper:focus,
 .jdm-nav-search .ant-input-affix-wrapper-focused {
-  border-color: #e03d36 !important;
-  box-shadow: 0 0 0 2px rgba(224, 61, 54, 0.2) !important;
+  border-color: #e03d36;
+  box-shadow: 0 0 0 2px rgba(224, 61, 54, 0.2);
 }
 
 /* Calendar icon / avatar in the navbar: a shared circular-ish hover highlight so both signal
