@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import { Button, Col, DatePicker, Image, Input, InputNumber, Radio, Row, Space, Steps, Typography, message } from 'antd';
+import { Button, Card, Col, DatePicker, Image, Input, InputNumber, Modal, Radio, Row, Space, Steps, Tag, Typography, Upload, message } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ProductImage } from '@/components/common/ProductImage';
@@ -13,12 +14,33 @@ import { CurrencyConverter } from '@/components/common/CurrencyConverter';
 import { TourReviews } from '@/components/common/TourReviews';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBookedDates, getTourById } from '@/services/tourService';
+import { getMyBookings, submitPaymentProof } from '@/services/bookingService';
 import { listPaymentMethods } from '@/services/paymentMethodService';
+import { ALLOWED_IMAGE_TYPES, uploadPaymentProofImage } from '@/services/uploadService';
 import { isBookingClosedForDate, tourAvailabilityStatus } from '@/utils/bookingUtils';
+import { formatCurrency } from '@/utils/formatters';
 import { getErrorMessage } from '@/utils/errors';
 import type { PaymentMethod } from '@/types/paymentMethod';
 import type { Tour } from '@/types/tour';
+import type { Booking, BookingPaymentStatus, BookingStatus } from '@/types/booking';
 import type { ReservationDraft } from '@/pages/ReservationCheckout';
+
+const STATUS_COLOR: Record<BookingStatus, string> = {
+  PENDING: 'warning',
+  CONFIRMED: 'processing',
+  CANCELLED: 'error',
+  COMPLETED: 'success',
+};
+
+const PAYMENT_STATUS_COLOR: Record<BookingPaymentStatus, string> = {
+  UNPAID: 'default',
+  PENDING: 'warning',
+  PAID: 'success',
+  FAILED: 'error',
+  REFUNDED: 'purple',
+};
+
+const IMAGE_ACCEPT = ALLOWED_IMAGE_TYPES.join(',');
 
 export default function TourDetail() {
   const { id } = useParams<{ id: string }>();
@@ -53,6 +75,36 @@ export default function TourDetail() {
   // never selects it.
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [paymentMethodId, setPaymentMethodId] = useState<number | null>(returningDraft?.paymentMethodId ?? null);
+
+  // If the customer already booked this tour (e.g. arriving here via "View Tour Page" from their
+  // reservation details), that context shouldn't disappear -- surfaced as its own card rather
+  // than making them hunt back through /cart.
+  const [myBookingsForTour, setMyBookingsForTour] = useState<Booking[]>([]);
+  const [proofTarget, setProofTarget] = useState<Booking | null>(null);
+  const [uploadingProof, setUploadingProof] = useState(false);
+
+  function fetchMyBookingsForTour() {
+    getMyBookings()
+      .then((bookings) => setMyBookingsForTour(bookings.filter((b) => b.tourId === tourId)))
+      .catch(() => undefined); // Non-fatal — this section just won't show.
+  }
+
+  async function handleUploadProof(file: File) {
+    if (!proofTarget) return Upload.LIST_IGNORE;
+    setUploadingProof(true);
+    try {
+      const fileUrl = await uploadPaymentProofImage(file);
+      await submitPaymentProof(proofTarget.id, { fileUrl, fileName: file.name, fileType: file.type });
+      message.success('Payment proof submitted — awaiting review.');
+      setProofTarget(null);
+      fetchMyBookingsForTour();
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Unable to submit payment proof.'));
+    } finally {
+      setUploadingProof(false);
+    }
+    return Upload.LIST_IGNORE;
+  }
 
   useEffect(() => {
     // tourId can change without unmounting this component (e.g. navigating between two tour
@@ -93,6 +145,15 @@ export default function TourDetail() {
       .catch(() => undefined); // Non-fatal — the button stays disabled without a selection either way.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setMyBookingsForTour([]);
+      return;
+    }
+    fetchMyBookingsForTour();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, tourId]);
 
   if (loading) return <PageSpinner />;
   if (!tour) {
@@ -179,6 +240,39 @@ export default function TourDetail() {
         </Col>
 
         <Col xs={24} md={12}>
+          {myBookingsForTour.length > 0 && (
+            <Card size="small" style={{ marginBottom: 20, borderRadius: 8, background: '#fafafa' }} title="Your Reservation(s) for This Tour">
+              <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+                {myBookingsForTour.map((booking) => {
+                  const canManagePayment = booking.status !== 'CANCELLED' && booking.paymentStatus !== 'PAID';
+                  return (
+                    <div key={booking.id} style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: 10 }}>
+                      <Space size={8} wrap>
+                        <Typography.Text strong>Reference JDM-{booking.id}</Typography.Text>
+                        <Tag color={STATUS_COLOR[booking.status]}>{booking.status}</Tag>
+                        <Tag color={PAYMENT_STATUS_COLOR[booking.paymentStatus]}>{booking.paymentStatus}</Tag>
+                      </Space>
+                      <div style={{ marginTop: 4 }}>
+                        <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                          {new Date(booking.bookingDate).toLocaleDateString('en-US', { dateStyle: 'medium', timeZone: 'UTC' })} ·{' '}
+                          {booking.participants} participant{booking.participants === 1 ? '' : 's'} · {formatCurrency(booking.totalPrice)}
+                        </Typography.Text>
+                      </div>
+                      {canManagePayment && (
+                        <Button size="small" style={{ marginTop: 8 }} icon={<UploadOutlined />} onClick={() => setProofTarget(booking)}>
+                          {booking.paymentStatus === 'UNPAID' ? 'Upload Proof' : 'Replace Proof'}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </Space>
+              <Link to="/cart" style={{ fontSize: 12 }}>
+                View all your reservations →
+              </Link>
+            </Card>
+          )}
+
           {tour.guide?.fullName && (
             <Typography.Text type="secondary" style={{ textTransform: 'uppercase' }}>
               Guide: {tour.guide.fullName}
@@ -303,6 +397,19 @@ export default function TourDetail() {
       </Row>
 
       <TourReviews tourId={tour.id} />
+
+      <Modal
+        title={proofTarget ? `Upload Payment Proof — JDM-${proofTarget.id}` : 'Upload Payment Proof'}
+        open={proofTarget !== null}
+        onCancel={() => setProofTarget(null)}
+        footer={null}
+      >
+        <Upload accept={IMAGE_ACCEPT} showUploadList={false} beforeUpload={handleUploadProof}>
+          <Button icon={<UploadOutlined />} loading={uploadingProof}>
+            Choose Image
+          </Button>
+        </Upload>
+      </Modal>
     </div>
   );
 }
