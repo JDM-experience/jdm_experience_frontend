@@ -153,11 +153,19 @@ export function Navbar() {
 
         {!isMobile && (
           <Menu
+            theme="dark"
             mode="horizontal"
             selectable
             selectedKeys={selectedNavKey}
             items={navMenuItems}
-            style={{ flex: 1, justifyContent: 'center', borderBottom: 'none', minWidth: 0, fontWeight: 500 }}
+            style={{
+              flex: 1,
+              justifyContent: 'center',
+              borderBottom: 'none',
+              minWidth: 0,
+              fontWeight: 500,
+              background: 'transparent',
+            }}
           />
         )}
 
@@ -233,7 +241,15 @@ export function Navbar() {
           style={{ marginBottom: 16 }}
           prefix={<SearchOutlined style={{ color: 'rgba(255,255,255,0.45)' }} />}
         />
-        <Menu mode="vertical" selectable selectedKeys={selectedNavKey} onClick={() => setDrawerOpen(false)} items={navMenuItems} />
+        <Menu
+          theme="dark"
+          mode="vertical"
+          selectable
+          selectedKeys={selectedNavKey}
+          onClick={() => setDrawerOpen(false)}
+          items={navMenuItems}
+          style={{ background: 'transparent', borderInlineEnd: 'none' }}
+        />
       </Drawer>
     </Layout.Header>
   );
