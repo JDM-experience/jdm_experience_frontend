@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Popconfirm, Table, Tag, Typography, message } from 'antd';
+import { Button, Input, Popconfirm, Select, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { EyeOutlined, StopOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
@@ -18,16 +18,21 @@ export default function AdminCustomers() {
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'inactive'>('');
 
   function fetchCustomers() {
     setLoading(true);
-    getCustomers()
+    getCustomers({
+      search: search || undefined,
+      isActive: statusFilter === '' ? undefined : statusFilter === 'active',
+    })
       .then(setCustomers)
       .catch((error) => message.error(getErrorMessage(error, 'Unable to load customers.')))
       .finally(() => setLoading(false));
   }
 
-  useEffect(fetchCustomers, []);
+  useEffect(fetchCustomers, [search, statusFilter]);
 
   async function handleDeactivate(id: number) {
     try {
@@ -75,20 +80,43 @@ export default function AdminCustomers() {
     },
   ];
 
-  if (loading) return <PageSpinner />;
-
   return (
     <div>
       <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 24 }}>
         Customer Maintenance
       </Typography.Title>
-      <Table
-        columns={columns}
-        dataSource={customers}
-        rowKey="id"
-        scroll={{ x: true }}
-        pagination={{ pageSize: 20, showSizeChanger: true, hideOnSinglePage: true }}
-      />
+
+      <Space wrap style={{ marginBottom: 16 }}>
+        <Input.Search
+          placeholder="Search name or email..."
+          allowClear
+          style={{ width: 260 }}
+          defaultValue={search}
+          onSearch={setSearch}
+        />
+        <Select
+          style={{ width: 160 }}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: '', label: 'All Statuses' },
+            { value: 'active', label: 'Active' },
+            { value: 'inactive', label: 'Deactivated' },
+          ]}
+        />
+      </Space>
+
+      {loading ? (
+        <PageSpinner />
+      ) : (
+        <Table
+          columns={columns}
+          dataSource={customers}
+          rowKey="id"
+          scroll={{ x: true }}
+          pagination={{ pageSize: 20, showSizeChanger: true, hideOnSinglePage: true }}
+        />
+      )}
     </div>
   );
 }

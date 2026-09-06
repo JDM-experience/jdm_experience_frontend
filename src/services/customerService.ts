@@ -7,8 +7,17 @@ import { ApiError } from '@/types/api';
 import type { ApiEnvelope } from '@/types/api';
 import type { Customer, UpdateCustomerProfileInput } from '@/types/customer';
 
-export async function getCustomers(): Promise<Customer[]> {
-  const res = await httpClient.get<ApiEnvelope<Customer[]>>('/customers');
+export interface CustomerListFilter {
+  search?: string;
+  isActive?: boolean;
+}
+
+export async function getCustomers(filter?: CustomerListFilter): Promise<Customer[]> {
+  const params = new URLSearchParams();
+  if (filter?.search) params.set('search', filter.search);
+  if (filter?.isActive !== undefined) params.set('isActive', String(filter.isActive));
+  const query = params.toString();
+  const res = await httpClient.get<ApiEnvelope<Customer[]>>(`/customers${query ? `?${query}` : ''}`);
   return res.data;
 }
 

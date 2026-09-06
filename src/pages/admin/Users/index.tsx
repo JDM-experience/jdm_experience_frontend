@@ -10,6 +10,14 @@ import { getErrorMessage } from '@/utils/errors';
 import type { ManagedUser } from '@/types/managedUser';
 import type { UserRole } from '@/types/admin';
 
+const ROLE_FILTER_OPTIONS: { value: '' | UserRole; label: string }[] = [
+  { value: '', label: 'All Roles' },
+  { value: 'SUPER_ADMIN', label: 'Super Admin' },
+  { value: 'ADMIN', label: 'Admin' },
+  { value: 'TOUR_GUIDE', label: 'Tour Guide' },
+  { value: 'CUSTOMER', label: 'Customer' },
+];
+
 interface UserFormValues {
   fullName: string;
   email: string;
@@ -54,9 +62,12 @@ export default function AdminUsers() {
   // create/edit/deactivate. A Tour Guide gets no access to this page at all.
   const canView = isSuperAdmin || admin?.role === 'ADMIN';
 
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'' | UserRole>('');
+
   function fetchUsers() {
     setLoading(true);
-    listUsers()
+    listUsers({ search: search || undefined, role: roleFilter || undefined })
       .then(setUsers)
       .catch((error) => message.error(getErrorMessage(error, 'Unable to load users.')))
       .finally(() => setLoading(false));
@@ -66,9 +77,7 @@ export default function AdminUsers() {
     if (canView) fetchUsers();
     else setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canView]);
-
-  if (loading) return <PageSpinner />;
+  }, [canView, search, roleFilter]);
 
   if (!canView) {
     return (
@@ -189,13 +198,28 @@ export default function AdminUsers() {
         )}
       </div>
 
-      <Table
-        columns={columns}
-        dataSource={users}
-        rowKey="id"
-        scroll={{ x: true }}
-        pagination={{ pageSize: 20, showSizeChanger: true, hideOnSinglePage: true }}
-      />
+      <Space wrap style={{ marginBottom: 16 }}>
+        <Input.Search
+          placeholder="Search name or email..."
+          allowClear
+          style={{ width: 260 }}
+          defaultValue={search}
+          onSearch={setSearch}
+        />
+        <Select style={{ width: 160 }} value={roleFilter} onChange={setRoleFilter} options={ROLE_FILTER_OPTIONS} />
+      </Space>
+
+      {loading ? (
+        <PageSpinner />
+      ) : (
+        <Table
+          columns={columns}
+          dataSource={users}
+          rowKey="id"
+          scroll={{ x: true }}
+          pagination={{ pageSize: 20, showSizeChanger: true, hideOnSinglePage: true }}
+        />
+      )}
 
       <Modal
         title={editingUser ? 'Edit User' : 'Add Admin or Tour Guide'}

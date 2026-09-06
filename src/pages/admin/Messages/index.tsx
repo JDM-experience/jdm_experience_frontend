@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Card, Popconfirm, Select, Space, Tag, Typography, message } from 'antd';
+import { Button, Card, Input, Popconfirm, Select, Space, Tag, Typography, message } from 'antd';
 import { CheckCircleOutlined, DeleteOutlined, MailOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -16,6 +16,11 @@ const STATUS_OPTIONS: { value: ContactMessageStatus; label: string }[] = [
   { value: 'ARCHIVED', label: 'Archived' },
 ];
 
+const STATUS_FILTER_OPTIONS: { value: '' | ContactMessageStatus; label: string }[] = [
+  { value: '', label: 'All Statuses' },
+  ...STATUS_OPTIONS,
+];
+
 const STATUS_COLOR: Record<ContactMessageStatus, string> = {
   NEW: 'blue',
   READ: 'default',
@@ -30,16 +35,18 @@ export default function AdminMessages() {
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'' | ContactMessageStatus>('');
 
   function fetchMessages() {
     setLoading(true);
-    getMessages()
+    getMessages({ search: search || undefined, status: statusFilter || undefined })
       .then(setMessages)
       .catch((error) => message.error(getErrorMessage(error, 'Unable to load messages.')))
       .finally(() => setLoading(false));
   }
 
-  useEffect(fetchMessages, []);
+  useEffect(fetchMessages, [search, statusFilter]);
 
   async function handleDelete(id: number) {
     try {
@@ -63,15 +70,26 @@ export default function AdminMessages() {
     }
   }
 
-  if (loading) return <PageSpinner />;
-
   return (
     <div>
       <Typography.Title level={3} style={{ marginBottom: 24 }}>
         Contact Messages
       </Typography.Title>
 
-      {messages.length === 0 ? (
+      <Space wrap style={{ marginBottom: 16 }}>
+        <Input.Search
+          placeholder="Search name, email, subject, or message..."
+          allowClear
+          style={{ width: 280 }}
+          defaultValue={search}
+          onSearch={setSearch}
+        />
+        <Select style={{ width: 160 }} value={statusFilter} onChange={setStatusFilter} options={STATUS_FILTER_OPTIONS} />
+      </Space>
+
+      {loading ? (
+        <PageSpinner />
+      ) : messages.length === 0 ? (
         <EmptyState title="No messages found." />
       ) : (
         messages.map((msg) => (

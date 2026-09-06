@@ -6,13 +6,22 @@ import { httpClient } from './httpClient';
 import type { ApiEnvelope } from '@/types/api';
 import type { ContactMessage, ContactMessageStatus, CreateContactMessageInput } from '@/types/contactMessage';
 
+export interface MessageListFilter {
+  search?: string;
+  status?: ContactMessageStatus;
+}
+
 export async function createMessage(input: CreateContactMessageInput): Promise<ContactMessage> {
   const res = await httpClient.post<ApiEnvelope<ContactMessage>>('/contact', input);
   return res.data;
 }
 
-export async function getMessages(): Promise<ContactMessage[]> {
-  const res = await httpClient.get<ApiEnvelope<ContactMessage[]>>('/contact');
+export async function getMessages(filter?: MessageListFilter): Promise<ContactMessage[]> {
+  const params = new URLSearchParams();
+  if (filter?.search) params.set('search', filter.search);
+  if (filter?.status) params.set('status', filter.status);
+  const query = params.toString();
+  const res = await httpClient.get<ApiEnvelope<ContactMessage[]>>(`/contact${query ? `?${query}` : ''}`);
   return res.data;
 }
 

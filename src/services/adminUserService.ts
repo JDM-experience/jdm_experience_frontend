@@ -4,10 +4,20 @@
 // meaningful mock to fall back to, and USE_MOCKS doesn't apply here.
 import { httpClient } from './httpClient';
 import type { ApiEnvelope } from '@/types/api';
+import type { UserRole } from '@/types/admin';
 import type { CreateManagedUserInput, ManagedUser, UpdateManagedUserInput } from '@/types/managedUser';
 
-export async function listUsers(): Promise<ManagedUser[]> {
-  const res = await httpClient.get<ApiEnvelope<ManagedUser[]>>('/users');
+export interface UserListFilter {
+  role?: UserRole;
+  search?: string;
+}
+
+export async function listUsers(filter?: UserListFilter): Promise<ManagedUser[]> {
+  const params = new URLSearchParams();
+  if (filter?.role) params.set('role', filter.role);
+  if (filter?.search) params.set('search', filter.search);
+  const query = params.toString();
+  const res = await httpClient.get<ApiEnvelope<ManagedUser[]>>(`/users${query ? `?${query}` : ''}`);
   return res.data;
 }
 
