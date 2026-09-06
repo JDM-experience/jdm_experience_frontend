@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Select, Spin, Typography } from 'antd';
-import { getExchangeRate, getSupportedCurrencies } from '@/services/currencyService';
+import { convertCurrency, getSupportedCurrencies } from '@/services/currencyService';
 import { getErrorMessage } from '@/utils/errors';
 import type { ExchangeRate } from '@/types/currency';
 
@@ -36,12 +36,12 @@ export function CurrencyConverter({ amountJPY }: CurrencyConverterProps) {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    getExchangeRate(BASE_CURRENCY, target)
+    convertCurrency(BASE_CURRENCY, target, amountJPY)
       .then((result) => {
         if (!cancelled) setRate(result);
       })
       .catch((err) => {
-        if (!cancelled) setError(getErrorMessage(err, 'Unable to load the exchange rate.'));
+        if (!cancelled) setError(getErrorMessage(err, 'Currency conversion is currently unavailable.'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -50,7 +50,7 @@ export function CurrencyConverter({ amountJPY }: CurrencyConverterProps) {
     return () => {
       cancelled = true;
     };
-  }, [target]);
+  }, [target, amountJPY]);
 
   const currencyOptions = [
     { value: 'JPY', label: 'JPY — Japanese Yen (original)' },
@@ -62,7 +62,7 @@ export function CurrencyConverter({ amountJPY }: CurrencyConverterProps) {
   return (
     <div style={{ marginTop: 16 }}>
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-        Estimated equivalent
+        View in your currency
       </Typography.Text>
       <div style={{ marginTop: 4 }}>
         <Select
@@ -86,11 +86,11 @@ export function CurrencyConverter({ amountJPY }: CurrencyConverterProps) {
         {target !== BASE_CURRENCY && !loading && !error && rate && (
           <>
             <Typography.Text strong>
-              {(amountJPY * rate.rate).toLocaleString('en-US', { maximumFractionDigits: 2 })} {rate.target}
+              ≈ {rate.convertedAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })} {rate.to}
             </Typography.Text>
             <br />
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              Exchange rate: 1 {rate.base} = {rate.rate} {rate.target} (as of {rate.date})
+              Exchange rate: 1 {rate.from} = {rate.rate} {rate.to} (as of {rate.date})
               — estimate only, final charge is in JPY.
             </Typography.Text>
           </>

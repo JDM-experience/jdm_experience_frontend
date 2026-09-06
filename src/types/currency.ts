@@ -1,6 +1,8 @@
 export interface ExchangeRate {
-  base: string;
-  target: string;
+  amount: number;
+  from: string;
+  to: string;
+  convertedAmount: number;
   rate: number;
   date: string;
 }

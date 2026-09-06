@@ -1,49 +1,21 @@
 import { useEffect, useState } from 'react';
-import { Alert, Col, Row, Select, Spin, Typography } from 'antd';
-import { getProducts } from '@/services/productService';
-import { getForecast, DEFAULT_TOKYO_COORDINATES } from '@/services/weatherService';
+import { Alert, Col, Row, Spin, Typography } from 'antd';
+import { getForecast } from '@/services/weatherService';
 import { describeWeatherCode } from '@/utils/weatherCodes';
 import { formatTourDate } from '@/utils/bookingUtils';
 import { getErrorMessage } from '@/utils/errors';
-import type { Product } from '@/types/product';
 import type { DailyForecast } from '@/types/weather';
 
-/**
- * These tours are driving experiences without a single destination, so they don't fit a
- * "weather at the destination" lookup — only tours tied to an actual place are listed here.
- */
-const EXCLUDED_FROM_WEATHER = new Set([
-  'Weekend Business Errand Drive',
-  'Nissan GT-R R35 Night Drive',
-  'Nissan Skyline ER34 Experience',
-]);
-
+/** All tours share one fixed physical location (see backend GET /weather) -- there is no
+ *  per-tour location to pick between, so this is simply the forecast for that one location. */
 export default function Weather() {
-  const [tours, setTours] = useState<Product[]>([]);
-  const [selectedTourId, setSelectedTourId] = useState<number | undefined>(undefined);
   const [forecast, setForecast] = useState<DailyForecast[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getProducts()
-      .then((results) => {
-        const locations = results.filter((tour) => !EXCLUDED_FROM_WEATHER.has(tour.name));
-        setTours(locations);
-        setSelectedTourId(locations[0]?.id);
-      })
-      .catch(() => undefined); // Non-fatal — the forecast below still works against the Tokyo default location.
-  }, []);
-
-  useEffect(() => {
-    const tour = tours.find((t) => t.id === selectedTourId);
-    const latitude = tour?.latitude ?? DEFAULT_TOKYO_COORDINATES.latitude;
-    const longitude = tour?.longitude ?? DEFAULT_TOKYO_COORDINATES.longitude;
-
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    getForecast(latitude, longitude)
+    getForecast()
       .then((days) => {
         if (!cancelled) setForecast(days);
       })
@@ -53,26 +25,18 @@ export default function Weather() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-
     return () => {
       cancelled = true;
     };
-  }, [selectedTourId, tours]);
+  }, []);
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '48px 24px' }}>
-      <Typography.Title level={2}>Tour Destination Weather</Typography.Title>
+      <Typography.Title level={2}>Weather Forecast</Typography.Title>
       <Typography.Paragraph type="secondary">
-        Forecasts are provided by Open-Meteo and typically cover the next 16 days.
+        Forecast for the Japan JDM Experience location, provided by Open-Meteo and typically covering the next 16
+        days.
       </Typography.Paragraph>
-
-      <Select
-        style={{ width: 320, marginBottom: 32 }}
-        value={selectedTourId}
-        onChange={setSelectedTourId}
-        options={tours.map((tour) => ({ value: tour.id, label: tour.name }))}
-        placeholder="Choose a location"
-      />
 
       {loading && <Spin size="large" />}
       {!loading && error && <Alert type="error" showIcon message={error} />}

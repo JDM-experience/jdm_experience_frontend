@@ -1,39 +1,18 @@
+// Proxied through the real backend (GET /currency/currencies, GET /currency/convert) instead of
+// calling Frankfurter.app directly from the browser -- the actual conversion math happens
+// server-side (never trusted to React alone), matching the real-backend convention used
+// elsewhere in this app.
+import { httpClient } from './httpClient';
+import type { ApiEnvelope } from '@/types/api';
 import type { ExchangeRate } from '@/types/currency';
 
-// Frankfurter.app is a free, public third-party API (not the future Node backend), so
-// this service calls `fetch` directly instead of following the mock/real facade split
-// used by src/services/*.ts for tours/bookings/etc.
-
-interface FrankfurterLatestResponse {
-  amount: number;
-  base: string;
-  date: string;
-  rates: Record<string, number>;
-}
-
 export async function getSupportedCurrencies(): Promise<Record<string, string>> {
-  const response = await fetch('https://api.frankfurter.dev/v1/currencies');
-  if (!response.ok) {
-    throw new Error('Unable to load supported currencies.');
-  }
-  return (await response.json()) as Record<string, string>;
+  const res = await httpClient.get<ApiEnvelope<Record<string, string>>>('/currency/currencies');
+  return res.data;
 }
 
-export async function getExchangeRate(from: string, to: string): Promise<ExchangeRate> {
-  const url = new URL('https://api.frankfurter.dev/v1/latest');
-  url.searchParams.set('from', from);
-  url.searchParams.set('to', to);
-
-  const response = await fetch(url.toString());
-  if (!response.ok) {
-    throw new Error('Unable to load the exchange rate.');
-  }
-
-  const body = (await response.json()) as FrankfurterLatestResponse;
-  const rate = body.rates[to];
-  if (rate === undefined) {
-    throw new Error(`No exchange rate is available for ${to}.`);
-  }
-
-  return { base: from, target: to, rate, date: body.date };
+export async function convertCurrency(from: string, to: string, amount: number): Promise<ExchangeRate> {
+  const params = new URLSearchParams({ from, to, amount: String(amount) });
+  const res = await httpClient.get<ApiEnvelope<ExchangeRate>>(`/currency/convert?${params.toString()}`);
+  return res.data;
 }

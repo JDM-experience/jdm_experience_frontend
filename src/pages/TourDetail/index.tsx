@@ -8,6 +8,9 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { ProductImage } from '@/components/common/ProductImage';
 import { PriceDisplay } from '@/components/common/PriceDisplay';
 import { AvailabilityBadge } from '@/components/common/AvailabilityBadge';
+import { TourWeatherForecast } from '@/components/common/TourWeatherForecast';
+import { CurrencyConverter } from '@/components/common/CurrencyConverter';
+import { TourReviews } from '@/components/common/TourReviews';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBookedDates, getTourById } from '@/services/tourService';
 import { listPaymentMethods } from '@/services/paymentMethodService';
@@ -185,6 +188,7 @@ export default function TourDetail() {
             {tour.name}
           </Typography.Title>
           <PriceDisplay price={tour.price} discount={0} />
+          <CurrencyConverter amountJPY={tour.price} />
           <Typography.Paragraph style={{ marginTop: 16 }}>{tour.description}</Typography.Paragraph>
 
           <div style={{ marginBottom: 16 }}>
@@ -217,6 +221,7 @@ export default function TourDetail() {
                           value={selectedDate ? dayjs(selectedDate) : null}
                           onChange={(date) => setSelectedDate(date ? date.format('YYYY-MM-DD') : null)}
                         />
+                        {selectedDate && <TourWeatherForecast date={selectedDate} />}
                       </div>
                       <div>
                         <Typography.Text>Participants</Typography.Text>
@@ -296,6 +301,8 @@ export default function TourDetail() {
           </div>
         </Col>
       </Row>
+
+      <TourReviews tourId={tour.id} />
     </div>
   );
 }

@@ -3,4 +3,6 @@ export interface DailyForecast {
   weatherCode: number;
   tempMaxC: number;
   tempMinC: number;
+  precipitationProbability: number | null;
+  windSpeedMaxKmh: number | null;
 }
