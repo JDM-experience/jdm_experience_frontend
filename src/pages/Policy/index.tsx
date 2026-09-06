@@ -21,7 +21,7 @@ export default function Policy() {
 
   return (
     <>
-      <div style={{ background: '#111', color: '#fff', padding: '64px 24px', textAlign: 'center' }}>
+      <div style={{ background: '#1C2333', borderBottom: '1px solid #303849', color: '#fff', padding: '64px 24px', textAlign: 'center' }}>
         <Typography.Title level={2} style={{ color: '#fff' }}>
           Store & Website Policies
         </Typography.Title>

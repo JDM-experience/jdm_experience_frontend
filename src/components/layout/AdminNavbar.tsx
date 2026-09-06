@@ -44,10 +44,11 @@ export function AdminNavbar() {
         justifyContent: 'space-between',
         gap: 16,
         paddingInline: 24,
-        background: '#000',
+        background: '#0F1117',
+        borderBottom: '1px solid #303849',
       }}
     >
-      <Link to="/admin/dashboard" style={{ color: '#faad14', fontWeight: 700, whiteSpace: 'nowrap' }}>
+      <Link to="/admin/dashboard" style={{ color: '#fff', fontWeight: 700, whiteSpace: 'nowrap' }}>
         Japan JDM Experience Tours Admin
       </Link>
 

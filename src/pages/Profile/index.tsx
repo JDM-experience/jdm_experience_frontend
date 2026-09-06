@@ -11,10 +11,11 @@ export default function Profile() {
       style={{
         maxWidth: 600,
         margin: '100px auto',
-        background: '#fff',
+        background: '#1C2333',
+        border: '1px solid #303849',
         padding: 40,
         borderRadius: 10,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
       }}
     >
       <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 24 }}>

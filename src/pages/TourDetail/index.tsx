@@ -246,7 +246,7 @@ export default function TourDetail() {
                   objectFit: 'cover',
                   cursor: 'pointer',
                   borderRadius: 4,
-                  border: img === mainImage ? '2px solid #000' : '1px solid #eee',
+                  border: img === mainImage ? '2px solid #E03D36' : '1px solid #303849',
                 }}
               />
             ))}
@@ -255,12 +255,12 @@ export default function TourDetail() {
 
         <Col xs={24} md={12}>
           {myBookingsForTour.length > 0 && (
-            <Card size="small" style={{ marginBottom: 20, borderRadius: 8, background: '#fafafa' }} title="Your Reservation(s) for This Tour">
+            <Card size="small" style={{ marginBottom: 20, borderRadius: 8, background: '#252D40', border: '1px solid #303849' }} title="Your Reservation(s) for This Tour">
               <Space orientation="vertical" size={12} style={{ width: '100%' }}>
                 {myBookingsForTour.map((booking) => {
                   const canManagePayment = booking.status !== 'CANCELLED' && booking.paymentStatus !== 'PAID';
                   return (
-                    <div key={booking.id} style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: 10 }}>
+                    <div key={booking.id} style={{ borderBottom: '1px solid #303849', paddingBottom: 10 }}>
                       <Space size={8} wrap>
                         <Typography.Text strong>Reference JDM-{booking.id}</Typography.Text>
                         <Tag color={STATUS_COLOR[booking.status]}>{booking.status}</Tag>

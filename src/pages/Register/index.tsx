@@ -23,9 +23,10 @@ export default function Register() {
       <div
         style={{
           padding: 40,
-          background: '#fff',
+          background: '#1C2333',
+          border: '1px solid #303849',
           borderRadius: 10,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
           textAlign: 'center',
         }}
       >

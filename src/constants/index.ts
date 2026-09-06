@@ -1,31 +1,50 @@
-import type { ThemeConfig } from 'antd';
+import { theme, type ThemeConfig } from 'antd';
 
 /**
- * AntD ConfigProvider theme, applied once at the app root in `App.tsx`.
- *
- * `colorPrimary` is pure black, which has no AntD-computed lighter/darker shade to
- * contrast against on hover/active — so those states, plus the default (secondary)
- * button palette, are pinned explicitly here rather than left to AntD's derived defaults.
+ * "Midnight Tokyo" -- AntD ConfigProvider theme, applied once at the app root in `App.tsx`.
+ * Dark, automotive, JDM-red accent. Red is reserved for primary actions/active state only (Book
+ * Now, Submit, Confirm, active nav) -- everything else uses white/light-gray text or the
+ * semantic status colors below, per the agreed usage table.
  */
 export const ANTD_THEME: ThemeConfig = {
+  algorithm: theme.darkAlgorithm,
   token: {
-    colorPrimary: '#000000',
-    colorPrimaryHover: '#333333',
-    colorPrimaryActive: '#000000',
+    colorBgBase: '#0F1117',
+    colorBgContainer: '#1C2333',
+    colorBgElevated: '#252D40',
+    colorBgLayout: '#0F1117',
+    colorPrimary: '#E03D36',
+    colorPrimaryHover: '#C9322C',
+    colorPrimaryActive: '#C9322C',
+    colorTextBase: '#FFFFFF',
+    colorText: '#FFFFFF',
+    colorTextSecondary: '#AEB4C0',
+    colorTextTertiary: '#8B93A5',
+    colorBorder: '#303849',
+    colorBorderSecondary: '#303849',
+    colorSuccess: '#35B86B',
+    colorWarning: '#F5A523',
+    colorError: '#E03D36',
     colorTextLightSolid: '#ffffff',
-    colorBorder: '#8c8c8c',
-    colorBorderSecondary: '#d9d9d9',
     borderRadius: 6,
     fontFamily: "'Segoe UI', Roboto, -apple-system, sans-serif",
   },
   components: {
+    Layout: {
+      headerBg: '#0F1117',
+      bodyBg: '#0F1117',
+      footerBg: '#0F1117',
+    },
     Button: {
-      defaultColor: '#000000',
-      defaultBorderColor: '#8c8c8c',
-      defaultHoverColor: '#000000',
-      defaultHoverBorderColor: '#000000',
-      defaultActiveColor: '#000000',
-      defaultActiveBorderColor: '#000000',
+      defaultColor: '#FFFFFF',
+      defaultBorderColor: '#303849',
+      defaultHoverColor: '#FFFFFF',
+      defaultHoverBorderColor: '#E03D36',
+      defaultActiveColor: '#FFFFFF',
+      defaultActiveBorderColor: '#C9322C',
+    },
+    Card: {
+      colorBgContainer: '#1C2333',
     },
   },
 };

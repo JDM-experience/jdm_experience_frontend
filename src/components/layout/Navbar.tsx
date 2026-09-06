@@ -93,7 +93,7 @@ export function Navbar() {
         <Avatar shape="square" src={item.image} />
         <span>
           <div style={{ fontWeight: 600 }}>{item.name}</div>
-          <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>{formatCurrency(item.price)}</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>{formatCurrency(item.price)}</div>
         </span>
       </Space>
     ),
@@ -128,9 +128,9 @@ export function Navbar() {
         // otherwise the tour-route map on the Home page paints over this fixed header on scroll.
         zIndex: 1100,
         width: '100%',
-        background: '#fff',
-        borderBottom: '1px solid #f0f0f0',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+        background: '#0F1117',
+        borderBottom: '1px solid #303849',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
         paddingInline: 0,
         height: 72,
       }}
@@ -177,7 +177,7 @@ export function Navbar() {
                 variant="filled"
                 size="small"
                 placeholder="Search tours..."
-                prefix={<SearchOutlined style={{ color: 'rgba(0,0,0,0.35)' }} />}
+                prefix={<SearchOutlined style={{ color: 'rgba(255,255,255,0.45)' }} />}
                 allowClear
                 onPressEnter={(e) => goToSearch((e.target as HTMLInputElement).value)}
               />
@@ -194,7 +194,7 @@ export function Navbar() {
                 shape="circle"
                 icon={
                   <Badge count={unpaidCount} size="small" title={`${unpaidCount} unpaid reservation${unpaidCount === 1 ? '' : 's'}`}>
-                    <CalendarOutlined style={{ fontSize: 18, color: '#000' }} />
+                    <CalendarOutlined style={{ fontSize: 18, color: '#fff' }} />
                   </Badge>
                 }
               />
@@ -205,14 +205,14 @@ export function Navbar() {
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }} size={8}>
                 <Badge dot={unpaidCount > 0} title={`${unpaidCount} unpaid reservation${unpaidCount === 1 ? '' : 's'}`}>
-                  <Avatar size={32} icon={<UserOutlined />} style={{ background: '#000' }} />
+                  <Avatar size={32} icon={<UserOutlined />} style={{ background: '#252D40' }} />
                 </Badge>
                 {!isMobile && <span style={{ fontWeight: 600 }}>Hi, {(user?.fullName ?? user?.email)?.split(' ')[0]}</span>}
               </Space>
             </Dropdown>
           ) : (
             <Link to="/login" aria-label="Login">
-              <Button type="text" shape="circle" icon={<UserOutlined style={{ fontSize: 18, color: '#000' }} />} />
+              <Button type="text" shape="circle" icon={<UserOutlined style={{ fontSize: 18, color: '#fff' }} />} />
             </Link>
           )}
 
@@ -231,7 +231,7 @@ export function Navbar() {
             setDrawerOpen(false);
           }}
           style={{ marginBottom: 16 }}
-          prefix={<SearchOutlined style={{ color: 'rgba(0,0,0,0.35)' }} />}
+          prefix={<SearchOutlined style={{ color: 'rgba(255,255,255,0.45)' }} />}
         />
         <Menu mode="vertical" selectable selectedKeys={selectedNavKey} onClick={() => setDrawerOpen(false)} items={navMenuItems} />
       </Drawer>

@@ -46,7 +46,7 @@ export function TourWeatherForecast({ date }: TourWeatherForecastProps) {
   const weatherDescription = forecast ? describeWeatherCode(forecast.weatherCode) : null;
 
   return (
-    <div style={{ marginTop: 16, padding: 16, background: '#fafafa', borderRadius: 8 }}>
+    <div style={{ marginTop: 16, padding: 16, background: '#252D40', border: '1px solid #303849', borderRadius: 8 }}>
       <Typography.Text strong>Weather for Your Tour</Typography.Text>
       <div>
         <Typography.Text type="secondary" style={{ fontSize: 12 }}>

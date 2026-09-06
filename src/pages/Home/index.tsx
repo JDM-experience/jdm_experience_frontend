@@ -25,22 +25,22 @@ const FEATURES = [
     icon: <CalendarOutlined style={{ fontSize: 28 }} />,
     title: 'Date-Based Booking',
     description: 'Pick a tour date and the system checks availability automatically.',
-    color: '#1677ff',
-    bg: '#e6f4ff',
+    color: '#4A90D9',
+    bg: 'rgba(74,144,217,0.15)',
   },
   {
     icon: <CarOutlined style={{ fontSize: 28 }} />,
     title: 'Flexible Fleet',
     description: 'Browse tours using existing vehicle type categories and tour prices.',
-    color: '#52c41a',
-    bg: '#f6ffed',
+    color: '#35B86B',
+    bg: 'rgba(53,184,107,0.15)',
   },
   {
     icon: <ClockCircleOutlined style={{ fontSize: 28 }} />,
     title: 'JST Cut-Off',
     description: `Same-day reservations close after ${CUTOFF_LABEL} Japan Standard Time.`,
-    color: '#faad14',
-    bg: '#fffbe6',
+    color: '#F5A523',
+    bg: 'rgba(245,165,35,0.15)',
   },
 ];
 
@@ -98,7 +98,7 @@ export default function Home() {
               Book guided JDM tours by date for city errands, business trips, and weekend drives.
             </Typography.Paragraph>
             <a href="#fleet">
-              <Button type="primary" size="large" style={{ background: '#000', borderColor: '#000' }}>
+              <Button type="primary" size="large">
                 Browse Tours
               </Button>
             </a>
@@ -129,7 +129,7 @@ export default function Home() {
         )}
       </section>
 
-      <section style={{ background: '#f8f8f8', padding: '48px 24px' }}>
+      <section style={{ background: '#1C2333', padding: '48px 24px' }}>
         <Row gutter={[32, 32]} justify="center" style={{ maxWidth: 1140, margin: '0 auto' }}>
           {FEATURES.map((feature) => (
             <Col key={feature.title} xs={24} md={8} style={{ textAlign: 'center' }}>
@@ -187,7 +187,7 @@ export default function Home() {
         </Row>
       </section>
 
-      <section style={{ background: '#f8f8f8', padding: '56px 24px' }}>
+      <section style={{ background: '#1C2333', padding: '56px 24px' }}>
         <div style={{ maxWidth: 1140, margin: '0 auto' }}>
           <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 32 }}>
             Plan Your Trip
@@ -196,7 +196,7 @@ export default function Home() {
             {TRIP_INFO.map((info) => (
               <Col xs={24} md={8} key={info.title}>
                 <Card style={{ height: '100%', borderRadius: 12 }}>
-                  <Typography.Text style={{ color: '#000' }}>{info.icon}</Typography.Text>
+                  <Typography.Text style={{ color: '#E03D36' }}>{info.icon}</Typography.Text>
                   <Typography.Title level={5} style={{ marginTop: 12, marginBottom: 8 }}>
                     {info.title}
                   </Typography.Title>

@@ -5,12 +5,13 @@ export default function AdminLogin() {
   const { login } = useAdminAuth();
 
   return (
-    <div style={{ minHeight: '100vh', background: '#111', color: '#fff', display: 'flex', alignItems: 'center' }}>
+    <div style={{ minHeight: '100vh', background: '#0F1117', color: '#fff', display: 'flex', alignItems: 'center' }}>
       <div
         style={{
           maxWidth: 400,
           margin: '0 auto',
-          background: '#1f1f1f',
+          background: '#1C2333',
+          border: '1px solid #303849',
           padding: 30,
           borderRadius: 10,
           boxShadow: '0 0 15px rgba(0,0,0,0.3)',

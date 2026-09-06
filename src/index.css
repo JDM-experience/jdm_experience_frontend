@@ -11,6 +11,11 @@ body,
 body {
   margin: 0;
   font-family: 'Segoe UI', Roboto, -apple-system, sans-serif;
+  /* "Midnight Tokyo" base -- matches ANTD_THEME's colorBgBase/colorText so there's no flash of
+     white, and no invisible dark-on-dark text, outside AntD-managed regions (e.g. plain
+     contentEditable elements, which don't pick up AntD's per-component dark styling). */
+  background: #0f1117;
+  color: #ffffff;
 }
 
 a {
@@ -32,7 +37,7 @@ a {
 .jdm-nav-search .ant-input-affix-wrapper:hover,
 .jdm-nav-search .ant-input-affix-wrapper:focus,
 .jdm-nav-search .ant-input-affix-wrapper-focused {
-  border-color: #d9d9d9 !important;
+  border-color: #303849 !important;
   box-shadow: none !important;
 }
 
@@ -74,5 +79,6 @@ a {
 
   body {
     background: #fff !important;
+    color: #000 !important;
   }
 }

@@ -49,7 +49,7 @@ export default function Weather() {
             const { icon, label } = describeWeatherCode(day.weatherCode);
             return (
               <Col key={day.date} xs={12} sm={8} md={6}>
-                <div style={{ padding: 16, background: '#fafafa', borderRadius: 8, textAlign: 'center' }}>
+                <div style={{ padding: 16, background: '#1C2333', border: '1px solid #303849', borderRadius: 8, textAlign: 'center' }}>
                   <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>
                     {formatTourDate(day.date)}
                   </Typography.Text>

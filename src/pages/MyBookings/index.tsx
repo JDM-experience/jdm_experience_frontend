@@ -201,11 +201,11 @@ export default function MyBookings() {
                   width: 72,
                   height: 72,
                   borderRadius: 10,
-                  background: '#f5f5f5',
+                  background: '#252D40',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#bfbfbf',
+                  color: '#8B93A5',
                   fontSize: 24,
                 }}
               >
@@ -312,10 +312,10 @@ export default function MyBookings() {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         {[
-          { label: 'Upcoming Trips', value: stats.upcoming, icon: <ClockCircleOutlined />, color: '#faad14', bg: '#fffbe6' },
-          { label: 'Completed Trips', value: stats.completed, icon: <CheckCircleOutlined />, color: '#52c41a', bg: '#f6ffed' },
-          { label: 'Cancelled Trips', value: stats.cancelled, icon: <CloseCircleOutlined />, color: '#ff4d4f', bg: '#fff1f0' },
-          { label: 'Total Reservations', value: stats.total, icon: <FileDoneOutlined />, color: '#1677ff', bg: '#e6f4ff' },
+          { label: 'Upcoming Trips', value: stats.upcoming, icon: <ClockCircleOutlined />, color: '#F5A523', bg: 'rgba(245,165,35,0.15)' },
+          { label: 'Completed Trips', value: stats.completed, icon: <CheckCircleOutlined />, color: '#35B86B', bg: 'rgba(53,184,107,0.15)' },
+          { label: 'Cancelled Trips', value: stats.cancelled, icon: <CloseCircleOutlined />, color: '#E03D36', bg: 'rgba(224,61,54,0.15)' },
+          { label: 'Total Reservations', value: stats.total, icon: <FileDoneOutlined />, color: '#4A90D9', bg: 'rgba(74,144,217,0.15)' },
         ].map((tile) => (
           <Col xs={12} md={6} key={tile.label}>
             <Card style={{ borderRadius: 12, height: '100%' }} styles={{ body: { padding: 16 } }}>

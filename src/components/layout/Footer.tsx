@@ -21,7 +21,7 @@ export function Footer() {
   const visibleLinks = visibleSocialLinks(socialLinks);
 
   return (
-    <Layout.Footer style={{ background: '#111', color: '#fff', padding: '32px 24px' }}>
+    <Layout.Footer style={{ background: '#0F1117', color: '#fff', padding: '32px 24px', borderTop: '1px solid #303849' }}>
       <div
         style={{
           display: 'flex',

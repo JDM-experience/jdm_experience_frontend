@@ -53,14 +53,14 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
   const isEmpty = !value || value.trim().length === 0;
 
   return (
-    <div style={{ border: '1px solid #d9d9d9', borderRadius: 8 }}>
+    <div style={{ border: '1px solid #303849', borderRadius: 8 }}>
       <div
         style={{
           display: 'flex',
           gap: 4,
           padding: '6px 8px',
-          borderBottom: '1px solid #f0f0f0',
-          background: '#fafafa',
+          borderBottom: '1px solid #303849',
+          background: '#252D40',
           borderRadius: '8px 8px 0 0',
           flexWrap: 'wrap',
         }}
@@ -103,7 +103,7 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
 
       <div style={{ position: 'relative' }}>
         {isEmpty && (
-          <div style={{ position: 'absolute', top: 12, left: 12, color: 'rgba(0,0,0,0.35)', pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', top: 12, left: 12, color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>
             {placeholder}
           </div>
         )}
@@ -111,7 +111,7 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
           ref={editorRef}
           contentEditable
           className="jdm-rich-text-editor"
-          style={{ minHeight: 180, padding: 12, outline: 'none' }}
+          style={{ minHeight: 180, padding: 12, outline: 'none', color: '#FFFFFF' }}
           onFocus={() => (focusedRef.current = true)}
           onBlur={() => (focusedRef.current = false)}
           onInput={() => onChange?.(editorRef.current?.innerHTML ?? '')}
