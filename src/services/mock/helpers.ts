@@ -19,6 +19,7 @@ export function toPublicUser(record: MockUserRecord): User {
     authProvider: 'LOCAL',
     isActive: true,
     createdAt: record.createdAt,
+    phone: null,
   };
 }
 

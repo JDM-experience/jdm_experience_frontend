@@ -4,6 +4,7 @@ import { AutoComplete, Avatar, Badge, Button, Drawer, Dropdown, Grid, Input, Lay
 import type { MenuProps } from 'antd';
 import { CalendarOutlined, MenuOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { NotificationBell } from './NotificationBell';
 import { getMyBookings } from '@/services/bookingService';
 import { listTours } from '@/services/tourService';
 import { formatCurrency } from '@/utils/formatters';
@@ -196,6 +197,8 @@ export function Navbar() {
               />
             </AutoComplete>
           )}
+
+          {isAuthenticated && <NotificationBell />}
 
           {isAuthenticated && (
             // "Your Reservation" -- "My Reservations" is already the label inside the profile

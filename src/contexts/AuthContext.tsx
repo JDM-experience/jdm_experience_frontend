@@ -18,13 +18,17 @@ interface AuthContextValue {
   isInitializing: boolean;
   login: (options?: LoginOptions) => void;
   logout: () => void;
+  /** Updates the cached profile in place (e.g. after PATCH /auth/me) so every consumer -- the
+   *  navbar's "Hi, {name}", the Profile page itself -- reflects the change immediately, without a
+   *  full re-fetch or page reload. */
+  setUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { loginWithRedirect, logout: auth0Logout, isAuthenticated: auth0Authenticated, error: auth0Error } = useAuth0();
-  const { profile, isLoading } = useAuthenticatedUser();
+  const { profile, isLoading, setProfile } = useAuthenticatedUser();
 
   // auth0-react doesn't console.error internal failures (bad audience, callback URL mismatch,
   // failed code exchange, etc.) — it just sets this field. Without surfacing it, a failed
@@ -60,8 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isInitializing: isLoading,
       login,
       logout,
+      setUser: setProfile,
     }),
-    [profile, auth0Authenticated, isLoading, login, logout],
+    [profile, auth0Authenticated, isLoading, login, logout, setProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

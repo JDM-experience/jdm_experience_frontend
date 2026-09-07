@@ -8,6 +8,7 @@ import { ANTD_THEME } from '@/constants';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { AdminAuthProvider } from '@/contexts/AdminAuthContext';
 import { WishlistProvider } from '@/contexts/WishlistContext';
+import { NotificationProvider } from '@/contexts/NotificationContext';
 import { RouteMain } from '@/routes/RouteMain';
 
 const AUTH0_DOMAIN = import.meta.env.VITE_AUTH0_DOMAIN;
@@ -73,7 +74,9 @@ function App() {
             <AdminAuthProvider>
               <AuthProvider>
                 <WishlistProvider>
-                  <RouteMain />
+                  <NotificationProvider>
+                    <RouteMain />
+                  </NotificationProvider>
                 </WishlistProvider>
               </AuthProvider>
             </AdminAuthProvider>

@@ -11,4 +11,11 @@ export interface User {
   authProvider: string;
   isActive: boolean;
   createdAt: string;
+  /** From the Customer profile-extension row -- only ever populated on `GET/PATCH /auth/me`. */
+  phone: string | null;
+}
+
+export interface UpdateOwnProfileInput {
+  fullName?: string;
+  phone?: string;
 }

@@ -12,7 +12,7 @@ import type { User } from '@/types/user';
  * Registers `getAccessTokenSilently` with httpClient so every subsequent request (from any
  * service, not just this hook's own fetch) can attach a bearer token.
  */
-export function useAuthenticatedUser(): { profile: User | null; isLoading: boolean } {
+export function useAuthenticatedUser(): { profile: User | null; isLoading: boolean; setProfile: (user: User) => void } {
   const { isAuthenticated, isLoading: auth0Loading, getAccessTokenSilently } = useAuth0();
   const [profile, setProfile] = useState<User | null>(null);
   const [fetching, setFetching] = useState(false);
@@ -47,5 +47,7 @@ export function useAuthenticatedUser(): { profile: User | null; isLoading: boole
     };
   }, [isAuthenticated, auth0Loading]);
 
-  return { profile, isLoading: auth0Loading || fetching };
+  // Exposed so a profile edit (PATCH /auth/me) can update the cached copy in place -- e.g. the
+  // navbar's "Hi, {name}" -- without needing a full re-fetch or page reload.
+  return { profile, isLoading: auth0Loading || fetching, setProfile };
 }

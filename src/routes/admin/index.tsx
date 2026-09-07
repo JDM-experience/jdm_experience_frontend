@@ -10,6 +10,7 @@ import AdminPaymentMethods from '@/pages/admin/PaymentMethods';
 import AdminBookings from '@/pages/admin/Bookings';
 import AdminReservations from '@/pages/admin/Reservations';
 import AdminCancellationRequests from '@/pages/admin/CancellationRequests';
+import AdminAuditTrail from '@/pages/admin/AuditTrail';
 
 /** Routes nested under `AdminLayout` + `AdminProtectedRoute`. `admin/login` isn't here — it
  *  renders without the admin layout/guard, so it stays a direct `<Route>` in `App.tsx`.
@@ -27,4 +28,5 @@ export const adminRoutes: AppRoute[] = [
   { path: 'admin/bookings', element: <AdminBookings /> },
   { path: 'admin/orders', element: <AdminReservations /> },
   { path: 'admin/cancellation-requests', element: <AdminCancellationRequests /> },
+  { path: 'admin/audit-trail', element: <AdminAuditTrail /> },
 ];

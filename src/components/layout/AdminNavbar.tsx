@@ -26,6 +26,7 @@ export function AdminNavbar() {
       ...(isStaff
         ? [
             { key: '/admin/cancellation-requests', label: 'Cancellation Requests' },
+            { key: '/admin/audit-trail', label: 'Audit Trail' },
             { key: '/admin/users', label: 'Users' },
             { key: '/admin/settings', label: 'Website Settings' },
           ]
