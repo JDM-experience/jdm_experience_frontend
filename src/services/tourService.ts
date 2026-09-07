@@ -99,9 +99,30 @@ export async function updateTourContact(tourId: number, input: UpdateTourContact
   return res.data;
 }
 
-/** Future dates (YYYY-MM-DD) that already have a CONFIRMED booking — not bookable by anyone else.
- *  A date not in this list is open, subject to the tour's own status and the JST same-day cutoff. */
+/** Future dates (YYYY-MM-DD) that are currently unavailable (an active booking or someone's
+ *  unexpired hold) — not bookable by anyone else. A date not in this list is open, subject to the
+ *  tour's own status and the JST same-day cutoff. Just a UX hint; holdTourDate is what actually
+ *  enforces this atomically. */
 export async function getBookedDates(tourId: number): Promise<string[]> {
   const res = await httpClient.get<ApiEnvelope<string[]>>(`/tours/${tourId}/booked-dates`);
   return res.data;
+}
+
+/**
+ * Atomically reserves `bookingDate` for the current customer, temporarily (see the backend's
+ * holdDate for the actual database-level guarantee). Call this the moment a customer picks a
+ * date, before letting them proceed to checkout. Throws (via httpClient's ApiError) with a 409 if
+ * the date is already booked or held by someone else -- callers should catch that and show "This
+ * date is currently unavailable."
+ */
+export async function holdTourDate(tourId: number, bookingDate: string): Promise<{ expiresAt: string }> {
+  const res = await httpClient.post<ApiEnvelope<{ expiresAt: string }>>(`/tours/${tourId}/hold-date`, { bookingDate });
+  return res.data;
+}
+
+/** Best-effort/idempotent release -- call when the customer picks a different date or abandons
+ *  checkout, so the slot frees up sooner than the hold's TTL. Errors are the caller's to decide
+ *  whether to ignore (this is a courtesy call, not something that should block the UI). */
+export async function releaseTourDate(tourId: number, bookingDate: string): Promise<void> {
+  await httpClient.delete<ApiEnvelope<null>>(`/tours/${tourId}/hold-date?bookingDate=${encodeURIComponent(bookingDate)}`);
 }

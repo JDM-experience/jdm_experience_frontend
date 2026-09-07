@@ -6,7 +6,7 @@ import { PageSpinner } from '@/components/common/PageSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ProductImage } from '@/components/common/ProductImage';
 import { useAuth } from '@/contexts/AuthContext';
-import { getTourById } from '@/services/tourService';
+import { getTourById, holdTourDate, releaseTourDate } from '@/services/tourService';
 import { createBooking } from '@/services/bookingService';
 import { getPaymentMethodById } from '@/services/paymentMethodService';
 import { ALLOWED_IMAGE_TYPES, uploadPaymentProofImage } from '@/services/uploadService';
@@ -52,6 +52,12 @@ export default function ReservationCheckout() {
   const [confirmed, setConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Re-confirms/refreshes the date hold that was created back on TourDetail -- this page's proof
+  // upload step can take a while, so re-holding here resets the TTL clock from the moment
+  // checkout actually starts, and defensively re-verifies availability in case the earlier hold
+  // somehow lapsed before the customer got here.
+  const [holdStatus, setHoldStatus] = useState<'checking' | 'held' | 'unavailable'>('checking');
+
   useEffect(() => {
     if (!draft) {
       setLoading(false);
@@ -79,6 +85,35 @@ export default function ReservationCheckout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft?.tourId, draft?.paymentMethodId]);
 
+  useEffect(() => {
+    if (!draft) return;
+    let cancelled = false;
+    setHoldStatus('checking');
+    holdTourDate(draft.tourId, draft.bookingDate)
+      .then(() => {
+        if (!cancelled) setHoldStatus('held');
+      })
+      .catch(() => {
+        if (!cancelled) setHoldStatus('unavailable');
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.tourId, draft?.bookingDate]);
+
+  // Best-effort release if the customer leaves without confirming -- harmless no-op if the hold
+  // was already consumed by a successful createBooking (releaseTourDate just finds nothing to
+  // delete in that case).
+  useEffect(() => {
+    if (!draft) return;
+    const { tourId: heldTourId, bookingDate: heldDate } = draft;
+    return () => {
+      void releaseTourDate(heldTourId, heldDate).catch(() => undefined);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.tourId, draft?.bookingDate]);
+
   async function handleUploadProof(file: File) {
     setUploadingProof(true);
     try {
@@ -93,7 +128,8 @@ export default function ReservationCheckout() {
     return Upload.LIST_IGNORE;
   }
 
-  const canConfirm = !!draft && !!tour && !!paymentMethod?.isActive && !!proofUrl && !!proofFile && confirmed && !uploadingProof;
+  const canConfirm =
+    !!draft && !!tour && !!paymentMethod?.isActive && !!proofUrl && !!proofFile && confirmed && !uploadingProof && holdStatus === 'held';
 
   async function handleConfirmReservation() {
     if (!draft || !proofUrl || !proofFile) return;
@@ -121,6 +157,10 @@ export default function ReservationCheckout() {
       // what we're showing so the customer isn't confirming stale information.
       if (draft) {
         getPaymentMethodById(draft.paymentMethodId).then(setPaymentMethod).catch(() => setPaymentMethod(null));
+        // The backend rejects this the same way whether the hold expired or someone else's
+        // request won the race -- either way the date is no longer held for this customer, so
+        // reflect that here rather than leaving the confirm button looking usable.
+        setHoldStatus('unavailable');
       }
     } finally {
       setSubmitting(false);
@@ -163,6 +203,21 @@ export default function ReservationCheckout() {
       <Typography.Title level={2} style={{ textAlign: 'center', marginBottom: 32 }}>
         Review &amp; Confirm Reservation
       </Typography.Title>
+
+      {holdStatus === 'unavailable' && (
+        <Alert
+          type="error"
+          showIcon
+          message="This date is currently unavailable."
+          description="Someone else may have just booked this date, or your hold expired. Please go back and choose another date."
+          action={
+            <Button size="small" onClick={() => navigate(`/tours/${draft.tourId}`, { state: { draft } })}>
+              Return to Reservation
+            </Button>
+          }
+          style={{ marginBottom: 24 }}
+        />
+      )}
 
       <Row gutter={[24, 24]}>
         <Col xs={24} md={12}>

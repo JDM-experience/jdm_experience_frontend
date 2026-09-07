@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import { Button, Card, Col, DatePicker, Image, Input, InputNumber, Modal, Popconfirm, Radio, Row, Space, Steps, Tag, Typography, Upload, message } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { Alert, Button, Card, Col, DatePicker, Image, Input, InputNumber, Modal, Popconfirm, Radio, Row, Space, Steps, Tag, Typography, Upload, message } from 'antd';
+import { CheckCircleOutlined, LoadingOutlined, UploadOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ProductImage } from '@/components/common/ProductImage';
@@ -13,7 +13,7 @@ import { TourWeatherForecast } from '@/components/common/TourWeatherForecast';
 import { CurrencyConverter } from '@/components/common/CurrencyConverter';
 import { TourReviews } from '@/components/common/TourReviews';
 import { useAuth } from '@/contexts/AuthContext';
-import { getBookedDates, getTourById } from '@/services/tourService';
+import { getBookedDates, getTourById, holdTourDate, releaseTourDate } from '@/services/tourService';
 import { cancelBooking, getMyBookings, submitPaymentProof } from '@/services/bookingService';
 import { listPaymentMethods } from '@/services/paymentMethodService';
 import { ALLOWED_IMAGE_TYPES, uploadPaymentProofImage } from '@/services/uploadService';
@@ -57,10 +57,20 @@ export default function TourDetail() {
   const [loading, setLoading] = useState(true);
   const [mainImage, setMainImage] = useState('');
 
-  // Dates already CONFIRMED-booked for this tour — a tour-date is exclusive to one such booking
-  // (like reserving the whole vehicle for the day), so these are simply disabled in the picker.
+  // Dates that already have an active booking or someone's hold — a tour-date is exclusive to one
+  // active booking/hold at a time (like reserving the whole vehicle for the day), so these are
+  // simply disabled in the picker. Just a UX hint; holdTourDate below is the real enforcement.
   const [bookedDates, setBookedDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(returningDraft?.bookingDate ?? null);
+  // Tracks the atomic backend hold for the currently-selected date -- "Proceed to Checkout" is
+  // gated on this being 'held', not just on a date being picked in the UI, since another customer
+  // may have grabbed the same date a moment earlier.
+  const [holdStatus, setHoldStatus] = useState<'idle' | 'checking' | 'held' | 'unavailable'>(
+    returningDraft ? 'held' : 'idle',
+  );
+  // The date this session currently holds, if any -- used to release it (best-effort) when the
+  // customer picks a different date or leaves the page without completing checkout.
+  const heldDateRef = useRef<string | null>(returningDraft?.bookingDate ?? null);
   const [participants, setParticipants] = useState(returningDraft?.participants ?? 1);
   const [specialRequests, setSpecialRequests] = useState(returningDraft?.specialRequests ?? '');
 
@@ -119,6 +129,63 @@ export default function TourDetail() {
     }
     return Upload.LIST_IGNORE;
   }
+
+  // Set right before navigating to Checkout so the hold survives the page transition -- the
+  // unmount-release effect below would otherwise release it, since this component unmounts on
+  // every navigation away, deliberate or not.
+  const proceedingToCheckoutRef = useRef(false);
+
+  async function attemptHoldDate(date: string) {
+    setHoldStatus('checking');
+    try {
+      await holdTourDate(tourId, date);
+      heldDateRef.current = date;
+      setHoldStatus('held');
+    } catch (error) {
+      setHoldStatus('unavailable');
+      message.error(getErrorMessage(error, 'This date is currently unavailable.'));
+      // The picker's disabled-dates hint is now stale (this date should show as taken) --
+      // refresh it so the customer doesn't immediately retry the same date.
+      getBookedDates(tourId)
+        .then(setBookedDates)
+        .catch(() => undefined);
+    }
+  }
+
+  function handleDateChange(date: Dayjs | null) {
+    const previouslyHeld = heldDateRef.current;
+    const iso = date ? date.format('YYYY-MM-DD') : null;
+    setSelectedDate(iso);
+    setHoldStatus('idle');
+    if (previouslyHeld && previouslyHeld !== iso) {
+      void releaseTourDate(tourId, previouslyHeld).catch(() => undefined);
+      heldDateRef.current = null;
+    }
+    if (iso) void attemptHoldDate(iso);
+  }
+
+  // Release this session's hold when leaving the page without proceeding to checkout (picking a
+  // different tour, navigating away entirely) -- best-effort, so the date frees up for other
+  // customers sooner than the hold's own TTL.
+  useEffect(() => {
+    return () => {
+      if (!proceedingToCheckoutRef.current && heldDateRef.current) {
+        void releaseTourDate(tourId, heldDateRef.current).catch(() => undefined);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tourId]);
+
+  // Arriving here via "Edit Reservation Details" from Checkout -- the draft's date was held
+  // before, but may have expired while the customer was reviewing/editing on that page. Re-hold
+  // (idempotent refresh if still held, real re-check otherwise) rather than trusting the
+  // optimistic initial 'held' state.
+  useEffect(() => {
+    if (returningDraft && isAuthenticated) {
+      void attemptHoldDate(returningDraft.bookingDate);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   useEffect(() => {
     // tourId can change without unmounting this component (e.g. navigating between two tour
@@ -190,6 +257,7 @@ export default function TourDetail() {
   const readyForCheckout =
     tour!.status === 'AVAILABLE' &&
     selectedDate !== null &&
+    holdStatus === 'held' &&
     customerName.trim() !== '' &&
     customerEmail.trim() !== '' &&
     customerPhone.trim() !== '' &&
@@ -204,10 +272,17 @@ export default function TourDetail() {
       login({ returnTo: window.location.pathname });
       return;
     }
+    if (holdStatus !== 'held') {
+      message.warning('This date is currently unavailable. Please choose another date.');
+      return;
+    }
     if (!readyForCheckout) {
       message.warning('Please fill in your contact information and select a payment method.');
       return;
     }
+
+    // The hold must survive the page transition -- see the unmount-release effect above.
+    proceedingToCheckoutRef.current = true;
 
     const draft: ReservationDraft = {
       tourId: tour.id,
@@ -343,8 +418,26 @@ export default function TourDetail() {
                           placeholder="Choose a date"
                           disabledDate={isDateDisabled}
                           value={selectedDate ? dayjs(selectedDate) : null}
-                          onChange={(date) => setSelectedDate(date ? date.format('YYYY-MM-DD') : null)}
+                          onChange={handleDateChange}
                         />
+                        {holdStatus === 'checking' && (
+                          <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+                            <LoadingOutlined /> Checking availability...
+                          </Typography.Text>
+                        )}
+                        {holdStatus === 'held' && (
+                          <Typography.Text type="success" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+                            <CheckCircleOutlined /> Date held for you — complete checkout to confirm your reservation.
+                          </Typography.Text>
+                        )}
+                        {holdStatus === 'unavailable' && (
+                          <Alert
+                            type="error"
+                            showIcon
+                            message="This date is currently unavailable."
+                            style={{ marginTop: 8 }}
+                          />
+                        )}
                         {selectedDate && <TourWeatherForecast date={selectedDate} />}
                       </div>
                       <div>
