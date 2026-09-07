@@ -22,6 +22,9 @@ export interface ListToursFilters {
   /** Matches tours whose name or description contains this (case-insensitive) — performed by the
    *  database, not filtered client-side. */
   search?: string;
+  /** Inclusive price range — filtered by the database, not the client. */
+  minPrice?: number;
+  maxPrice?: number;
   sortBy?: TourSortBy;
   sortOrder?: SortOrder;
 }
@@ -30,6 +33,8 @@ export async function listTours(filters: ListToursFilters = {}): Promise<Tour[]>
   const params = new URLSearchParams();
   if (filters.status) params.set('status', filters.status);
   if (filters.search) params.set('search', filters.search);
+  if (filters.minPrice !== undefined) params.set('minPrice', String(filters.minPrice));
+  if (filters.maxPrice !== undefined) params.set('maxPrice', String(filters.maxPrice));
   if (filters.sortBy) params.set('sortBy', filters.sortBy);
   if (filters.sortOrder) params.set('sortOrder', filters.sortOrder);
   const query = params.toString();

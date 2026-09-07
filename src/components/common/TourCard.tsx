@@ -1,7 +1,9 @@
-import { memo } from 'react';
+import { memo, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Card, Typography } from 'antd';
-import { ArrowRightOutlined } from '@ant-design/icons';
+import { ArrowRightOutlined, HeartFilled, HeartOutlined } from '@ant-design/icons';
+import { useAuth } from '@/contexts/AuthContext';
+import { useWishlist } from '@/contexts/WishlistContext';
 import type { Tour } from '@/types/tour';
 import { tourAvailabilityStatus } from '@/utils/bookingUtils';
 import { formatCurrency } from '@/utils/formatters';
@@ -13,6 +15,19 @@ import { AvailabilityBadge } from './AvailabilityBadge';
 export const TourCard = memo(function TourCard({ tour }: { tour: Tour }) {
   const status = tourAvailabilityStatus(tour);
   const image = tour.images[0]?.imageUrl ?? '';
+  const { isAuthenticated, login } = useAuth();
+  const { wishlistedTourIds, isPending, toggle } = useWishlist();
+  const saved = wishlistedTourIds.has(tour.id);
+
+  function handleWishlistClick(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      login();
+      return;
+    }
+    void toggle(tour.id);
+  }
 
   return (
     <Card
@@ -25,6 +40,14 @@ export const TourCard = memo(function TourCard({ tour }: { tour: Tour }) {
           <span style={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }}>
             <AvailabilityBadge status={status} />
           </span>
+          <Button
+            shape="circle"
+            aria-label={saved ? 'Remove from wishlist' : 'Add to wishlist'}
+            icon={saved ? <HeartFilled style={{ color: '#E03D36' }} /> : <HeartOutlined />}
+            loading={isPending(tour.id)}
+            onClick={handleWishlistClick}
+            style={{ position: 'absolute', top: 10, left: 10, zIndex: 2 }}
+          />
           <ProductImage
             fileName={image}
             alt={tour.name}

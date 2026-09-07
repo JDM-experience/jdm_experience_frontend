@@ -119,6 +119,7 @@ export function Navbar() {
         </Link>
       ),
     },
+    { key: 'wishlist', label: <Link to="/wishlist">My Wishlist</Link> },
     { key: 'profile', label: <Link to="/profile">My Profile</Link> },
     { type: 'divider' },
     { key: 'logout', danger: true, label: 'Logout', onClick: () => logout() },

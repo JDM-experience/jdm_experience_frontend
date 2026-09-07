@@ -7,6 +7,7 @@ import type { AppState } from '@auth0/auth0-react';
 import { ANTD_THEME } from '@/constants';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { AdminAuthProvider } from '@/contexts/AdminAuthContext';
+import { WishlistProvider } from '@/contexts/WishlistContext';
 import { RouteMain } from '@/routes/RouteMain';
 
 const AUTH0_DOMAIN = import.meta.env.VITE_AUTH0_DOMAIN;
@@ -71,7 +72,9 @@ function App() {
           <Auth0ProviderWithNavigate>
             <AdminAuthProvider>
               <AuthProvider>
-                <RouteMain />
+                <WishlistProvider>
+                  <RouteMain />
+                </WishlistProvider>
               </AuthProvider>
             </AdminAuthProvider>
           </Auth0ProviderWithNavigate>
