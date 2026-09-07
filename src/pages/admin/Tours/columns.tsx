@@ -4,6 +4,22 @@ import { CheckCircleOutlined, ContactsOutlined, DeleteOutlined, EditOutlined, Pi
 import { formatCurrency } from '@/utils/formatters';
 import type { Tour, TourStatus } from '@/types/tour';
 import { MANUAL_STATUS_OPTIONS, STATUS_COLOR, STATUS_LABEL } from './constants';
+import { getLimitedOfferStatus, type LimitedOfferStatus } from './limitedOffer';
+
+const OFFER_STATUS_COLOR: Record<LimitedOfferStatus, string> = {
+  ACTIVE: 'error',
+  SCHEDULED: 'processing',
+  EXPIRED: 'default',
+  DISABLED: 'default',
+  NONE: 'default',
+};
+const OFFER_STATUS_LABEL: Record<LimitedOfferStatus, string> = {
+  ACTIVE: 'Active',
+  SCHEDULED: 'Scheduled',
+  EXPIRED: 'Expired',
+  DISABLED: 'Disabled',
+  NONE: '—',
+};
 
 interface TourColumnsOptions {
   isStaff: boolean;
@@ -80,6 +96,21 @@ export function getTourColumns({
       },
     },
     { title: 'Seats', dataIndex: 'seats' },
+    {
+      title: 'Offer',
+      key: 'limitedOffer',
+      render: (_, tour) => {
+        const offerStatus = getLimitedOfferStatus(tour.limitedOffer);
+        return (
+          <Space size={4}>
+            {tour.limitedOffer.discount !== null && offerStatus !== 'NONE' && (
+              <Typography.Text strong={offerStatus === 'ACTIVE'}>{tour.limitedOffer.discount}% OFF</Typography.Text>
+            )}
+            <Tag color={OFFER_STATUS_COLOR[offerStatus]}>{OFFER_STATUS_LABEL[offerStatus]}</Tag>
+          </Space>
+        );
+      },
+    },
     {
       title: 'Guide',
       key: 'guide',

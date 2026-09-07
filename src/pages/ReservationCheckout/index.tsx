@@ -11,7 +11,7 @@ import { createBooking } from '@/services/bookingService';
 import { getPaymentMethodById } from '@/services/paymentMethodService';
 import { ALLOWED_IMAGE_TYPES, uploadPaymentProofImage } from '@/services/uploadService';
 import { formatCurrency } from '@/utils/formatters';
-import { formatTourDate } from '@/utils/bookingUtils';
+import { effectivePrice, formatTourDate } from '@/utils/bookingUtils';
 import { getErrorMessage } from '@/utils/errors';
 import type { PaymentMethod } from '@/types/paymentMethod';
 import type { Tour } from '@/types/tour';
@@ -259,7 +259,20 @@ export default function ReservationCheckout() {
               <div>
                 <Typography.Text type="secondary">Total</Typography.Text>
                 <br />
-                <Typography.Text strong>{formatCurrency(tour.price * draft.participants)}</Typography.Text>
+                {/* Display estimate only -- the backend independently recomputes the actual charged
+                    price (regular or discounted) at booking time, never trusting this figure. */}
+                {tour.limitedOffer.isActive && tour.limitedOffer.discount !== null ? (
+                  <>
+                    <Typography.Text delete type="secondary" style={{ marginRight: 8 }}>
+                      {formatCurrency(tour.price * draft.participants)}
+                    </Typography.Text>
+                    <Typography.Text strong type="danger">
+                      {formatCurrency(effectivePrice(tour.price, tour.limitedOffer.discount) * draft.participants)}
+                    </Typography.Text>
+                  </>
+                ) : (
+                  <Typography.Text strong>{formatCurrency(tour.price * draft.participants)}</Typography.Text>
+                )}
               </div>
               {draft.specialRequests && (
                 <div>

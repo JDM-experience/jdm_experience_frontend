@@ -139,3 +139,32 @@ export function isMoreThan24HoursBeforeBooking(bookingDate: string): boolean {
   const start = new Date(`${dateOnly}T${DEFAULT_BOOKING_TIME_JST}:00+09:00`);
   return start.getTime() - Date.now() > 24 * 60 * 60 * 1000;
 }
+
+/**
+ * Admin Limited-Time Offer form helpers: the admin picks a start/end date+time meaning "JST wall
+ * clock", never the browser's own local timezone (see the Limited-Time Offer spec's timezone
+ * rule) -- a fixed "+09:00" offset is always correct since JST has no DST, same technique as the
+ * backend's src/lib/dateTime.ts.
+ */
+export function jstDateTimeToIso(date: string, time: string): string {
+  return new Date(`${date}T${time}:00+09:00`).toISOString();
+}
+
+/** Inverse of jstDateTimeToIso -- used to pre-fill the admin form's date/time pickers from a
+ *  server-returned UTC ISO instant (e.g. tour.limitedOffer.startAt). */
+export function isoToJstDateTime(iso: string): { date: string; time: string } {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(new Date(iso));
+  const map: Record<string, string> = {};
+  for (const part of parts) map[part.type] = part.value;
+  const hour = (Number(map.hour) % 24).toString().padStart(2, '0');
+  return { date: `${map.year}-${map.month}-${map.day}`, time: `${hour}:${map.minute}` };
+}

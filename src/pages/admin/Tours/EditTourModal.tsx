@@ -6,6 +6,8 @@ import type { Tour, UpdateTourInput } from '@/types/tour';
 import { MANUAL_STATUS_OPTIONS } from './constants';
 import type { TourFormValues } from './types';
 import { TourImagesEditor } from './TourImagesEditor';
+import { LimitedOfferFormSection } from './LimitedOfferFormSection';
+import { buildLimitedOfferInput, limitedOfferFormValues } from './limitedOffer';
 
 interface EditTourModalProps {
   open: boolean;
@@ -32,6 +34,7 @@ export function EditTourModal({ open, tour, onClose, onSaved, onImagesChanged, i
         status: tour.status,
         seats: tour.seats,
         guideId: tour.guide?.id,
+        ...limitedOfferFormValues(tour),
       });
     }
     // Deliberately keyed on tour id, not the tour object — refreshTour() swaps in a new
@@ -42,6 +45,17 @@ export function EditTourModal({ open, tour, onClose, onSaved, onImagesChanged, i
 
   async function handleFinish(values: TourFormValues) {
     if (!tour) return;
+
+    let offerFields: Partial<UpdateTourInput> = {};
+    if (isStaff) {
+      const offer = buildLimitedOfferInput(values);
+      if ('error' in offer) {
+        message.error(offer.error);
+        return;
+      }
+      offerFields = offer;
+    }
+
     setUpdating(true);
     try {
       const input: UpdateTourInput = {
@@ -55,6 +69,7 @@ export function EditTourModal({ open, tour, onClose, onSaved, onImagesChanged, i
         // rejects a guide-submitted status change regardless — this just avoids sending fields the
         // form never showed.
         ...(isStaff ? { status: values.status, guideId: values.guideId ?? null } : {}),
+        ...offerFields,
       };
       await updateTour(tour.id, input);
       message.success('Tour updated successfully.');
@@ -123,6 +138,7 @@ export function EditTourModal({ open, tour, onClose, onSaved, onImagesChanged, i
             <Form.Item label="Tour Guide" name="guideId" extra="Who this tour is assigned to. Leave unset to keep it unassigned.">
               <Select allowClear placeholder="Unassigned" options={guideOptions} notFoundContent="No tour guides available" />
             </Form.Item>
+            <LimitedOfferFormSection form={form} />
           </>
         )}
         {tour && (

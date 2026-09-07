@@ -9,6 +9,7 @@ import {
   CompassOutlined,
   DollarCircleOutlined,
   EnvironmentOutlined,
+  FireFilled,
 } from '@ant-design/icons';
 import { TourCard } from '@/components/common/TourCard';
 import { FeaturedTourHero } from '@/components/common/FeaturedTourHero';
@@ -66,16 +67,26 @@ const TRIP_INFO = [
 ];
 
 export default function Home() {
-  const [tours, setTours] = useState<Tour[]>([]);
+  const [allTours, setAllTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // No local sort needed -- the backend's default order (id desc, newest first) already
-    // matches what this section wants; only the display-count truncation happens client-side.
+  function fetchTours() {
     listTours({ status: 'AVAILABLE' })
-      .then((results) => setTours(results.slice(0, 8)))
+      .then(setAllTours)
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(fetchTours, []);
+
+  // No local sort needed -- the backend's default order (id desc, newest first) already matches
+  // what this section wants; only the display-count truncation happens client-side.
+  const tours = allTours.slice(0, 8);
+  // `isActive` is re-derived by the backend on every fetch (never cached/computed client-side) --
+  // filtered from the FULL list, not the truncated `tours` above, so an active offer is never
+  // hidden just because its tour didn't land in the first 8. Re-fetched (via fetchTours, passed to
+  // LimitedOfferSection as onExpire) the instant a displayed countdown hits zero, so this section
+  // never keeps showing a promotion the backend would now reject at booking time.
+  const offerTours = allTours.filter((t) => t.limitedOffer.isActive);
 
   return (
     <>
@@ -106,6 +117,25 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {!loading && offerTours.length > 0 && (
+        <section style={{ maxWidth: 1140, margin: '0 auto', padding: '48px 24px 0' }}>
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <Typography.Title level={2} style={{ marginBottom: 4 }}>
+              <FireFilled style={{ color: '#E03D36', marginRight: 8 }} />
+              Limited-Time Offers
+            </Typography.Title>
+            <Typography.Text type="secondary">Book now before these discounted prices expire.</Typography.Text>
+          </div>
+          <Row gutter={[24, 24]}>
+            {offerTours.map((tour) => (
+              <Col key={tour.id} xs={24} sm={12} md={8} lg={6}>
+                <TourCard tour={tour} onOfferExpire={fetchTours} />
+              </Col>
+            ))}
+          </Row>
+        </section>
+      )}
 
       <section id="fleet" style={{ maxWidth: 1140, margin: '0 auto', padding: '64px 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: 40 }}>

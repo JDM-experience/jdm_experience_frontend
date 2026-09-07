@@ -32,6 +32,19 @@ export interface TourImage {
   focalY: number;
 }
 
+/** Server-authoritative Limited-Time Offer state — `isActive` is re-derived by the backend on
+ *  every response from `enabled`/`startAt`/`endAt` against the current instant; never computed
+ *  or cached client-side to decide whether a discounted price may still be booked. The discounted
+ *  price itself is never sent as a field — compute it from `Tour.price` + `discount` (see
+ *  utils/bookingUtils.ts's `effectivePrice`), same as the existing PriceDisplay component does. */
+export interface LimitedOffer {
+  enabled: boolean;
+  discount: number | null;
+  startAt: string | null;
+  endAt: string | null;
+  isActive: boolean;
+}
+
 export interface Tour {
   id: number;
   name: string;
@@ -45,6 +58,7 @@ export interface Tour {
   seats: number;
   guide: TourGuide | null;
   images: TourImage[];
+  limitedOffer: LimitedOffer;
   createdAt: string;
   updatedAt: string;
 }
@@ -61,6 +75,12 @@ export interface CreateTourInput {
   guideId?: number | null;
   /** Images already uploaded via uploadService — attaches them in the same create request. Max 20. */
   images?: CreateTourImageInput[];
+  limitedOfferEnabled?: boolean;
+  /** Percentage, > 0 and <= 100. Required by the backend when `limitedOfferEnabled` is true. */
+  limitedOfferDiscount?: number;
+  /** ISO datetime string (with explicit UTC/JST offset — never a bare local time). */
+  limitedOfferStart?: string;
+  limitedOfferEnd?: string;
 }
 
 export interface UpdateTourInput {
@@ -72,6 +92,10 @@ export interface UpdateTourInput {
   status?: TourStatus;
   seats?: number;
   guideId?: number | null;
+  limitedOfferEnabled?: boolean;
+  limitedOfferDiscount?: number;
+  limitedOfferStart?: string;
+  limitedOfferEnd?: string;
 }
 
 export interface CreateTourImageInput {

@@ -8,6 +8,7 @@ import { PageSpinner } from '@/components/common/PageSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ProductImage } from '@/components/common/ProductImage';
 import { PriceDisplay } from '@/components/common/PriceDisplay';
+import { LimitedOfferTimer } from '@/components/common/LimitedOfferTimer';
 import { AvailabilityBadge } from '@/components/common/AvailabilityBadge';
 import { TourWeatherForecast } from '@/components/common/TourWeatherForecast';
 import { CurrencyConverter } from '@/components/common/CurrencyConverter';
@@ -17,7 +18,7 @@ import { getBookedDates, getTourById, holdTourDate, releaseTourDate } from '@/se
 import { cancelBooking, getMyBookings, submitPaymentProof } from '@/services/bookingService';
 import { listPaymentMethods } from '@/services/paymentMethodService';
 import { ALLOWED_IMAGE_TYPES, uploadPaymentProofImage } from '@/services/uploadService';
-import { isBookingClosedForDate, tourAvailabilityStatus } from '@/utils/bookingUtils';
+import { effectivePrice, isBookingClosedForDate, tourAvailabilityStatus } from '@/utils/bookingUtils';
 import { formatCurrency } from '@/utils/formatters';
 import { getErrorMessage } from '@/utils/errors';
 import type { PaymentMethod } from '@/types/paymentMethod';
@@ -248,6 +249,19 @@ export default function TourDetail() {
   const mainImageMeta = tour.images.find((img) => img.imageUrl === mainImage);
   const mainImageFocalPosition = `${mainImageMeta?.focalX ?? 50}% ${mainImageMeta?.focalY ?? 50}%`;
   const status = tourAvailabilityStatus(tour);
+  const hasActiveOffer = tour.limitedOffer.isActive && tour.limitedOffer.discount !== null;
+  const activeDiscount = hasActiveOffer ? tour.limitedOffer.discount! : 0;
+
+  // Re-fetches the tour the instant its countdown visibly hits zero -- the backend re-derives
+  // `limitedOffer.isActive` fresh on this call, so the UI stops advertising a discount the backend
+  // would now reject at booking time regardless (see the Limited-Time Offer spec's expiration rule).
+  function refreshTourOnOfferExpire() {
+    getTourById(tourId)
+      .then((t) => {
+        if (t) setTour(t);
+      })
+      .catch(() => undefined);
+  }
 
   function isDateDisabled(date: Dayjs): boolean {
     if (date.isBefore(dayjs(), 'day')) return true;
@@ -388,8 +402,13 @@ export default function TourDetail() {
           <Typography.Title level={2} style={{ marginTop: 4 }}>
             {tour.name}
           </Typography.Title>
-          <PriceDisplay price={tour.price} discount={0} />
-          <CurrencyConverter amountJPY={tour.price} />
+          <PriceDisplay price={tour.price} discount={activeDiscount} />
+          {hasActiveOffer && tour.limitedOffer.endAt && (
+            <div style={{ margin: '8px 0' }}>
+              <LimitedOfferTimer endAt={tour.limitedOffer.endAt} onExpire={refreshTourOnOfferExpire} />
+            </div>
+          )}
+          <CurrencyConverter amountJPY={hasActiveOffer ? effectivePrice(tour.price, activeDiscount) : tour.price} />
           <Typography.Paragraph style={{ marginTop: 16 }}>{tour.description}</Typography.Paragraph>
 
           <div style={{ marginBottom: 16 }}>

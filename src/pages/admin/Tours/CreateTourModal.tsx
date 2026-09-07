@@ -3,12 +3,15 @@ import { Button, Form, Input, InputNumber, Modal, Select, Space, Typography, Upl
 import { DeleteOutlined, EyeOutlined, UploadOutlined } from '@ant-design/icons';
 import { ProductImage, resolveSrc } from '@/components/common/ProductImage';
 import { createTour } from '@/services/tourService';
+import type { CreateTourInput } from '@/types/tour';
 import { uploadTourImage } from '@/services/uploadService';
 import { getErrorMessage } from '@/utils/errors';
 import { slugify } from '@/utils/formatters';
 import { IMAGE_ACCEPT } from './constants';
 import { ImageCropGuide } from './ImageCropGuide';
 import { ImageFocalPointPicker } from './ImageFocalPointPicker';
+import { LimitedOfferFormSection } from './LimitedOfferFormSection';
+import { buildLimitedOfferInput } from './limitedOffer';
 import type { TourFormValues } from './types';
 
 interface CreateTourModalProps {
@@ -80,6 +83,16 @@ export function CreateTourModal({ open, onClose, onCreated, isStaff, guideOption
   }
 
   async function handleFinish(values: TourFormValues) {
+    let offerFields: Partial<CreateTourInput> = {};
+    if (isStaff) {
+      const offer = buildLimitedOfferInput(values);
+      if ('error' in offer) {
+        message.error(offer.error);
+        return;
+      }
+      offerFields = offer;
+    }
+
     setCreating(true);
     try {
       await createTour({
@@ -93,6 +106,7 @@ export function CreateTourModal({ open, onClose, onCreated, isStaff, guideOption
         images: images.length
           ? images.map((img, sortOrder) => ({ imageUrl: img.imageUrl, sortOrder, focalX: img.focalX, focalY: img.focalY }))
           : undefined,
+        ...offerFields,
       });
       message.success('Tour created — it starts Pending until an Admin confirms it.');
       onClose();
@@ -152,9 +166,12 @@ export function CreateTourModal({ open, onClose, onCreated, isStaff, guideOption
           <InputNumber style={{ width: '100%' }} min={1} step={1} placeholder="Number of seats" />
         </Form.Item>
         {isStaff && (
-          <Form.Item label="Tour Guide" name="guideId" extra="Who this tour is assigned to. Leave unset to keep it unassigned.">
-            <Select allowClear placeholder="Unassigned" options={guideOptions} notFoundContent="No tour guides available" />
-          </Form.Item>
+          <>
+            <Form.Item label="Tour Guide" name="guideId" extra="Who this tour is assigned to. Leave unset to keep it unassigned.">
+              <Select allowClear placeholder="Unassigned" options={guideOptions} notFoundContent="No tour guides available" />
+            </Form.Item>
+            <LimitedOfferFormSection form={form} />
+          </>
         )}
         <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 16, fontSize: 12 }}>
           New tours start as <strong>Pending</strong> — an Admin must confirm the tour before it
