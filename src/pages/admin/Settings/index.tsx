@@ -1,22 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Card, Form, Input, List, Modal, Popconfirm, Space, Tabs, Typography, message } from 'antd';
-import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
+import { Button, Card, Form, Input, InputNumber, List, Modal, Popconfirm, Space, Switch, Table, Tabs, Tag, Typography, message } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
 import { RichTextEditor } from '@/components/common/RichTextEditor';
 import {
+  createFaq,
+  deleteFaq,
   getAboutContent,
   getContactSettings,
+  getFaqsAdmin,
   getPolicyForAdmin,
   getSocialLinks,
   removeSocialLink,
   saveSocialLink,
   updateAboutContent,
   updateContactSettings,
+  updateFaq,
   updatePolicy,
 } from '@/services/settingsService';
 import { SOCIAL_PLATFORM_LABELS } from '@/utils/socialIcons';
 import { getErrorMessage } from '@/utils/errors';
-import type { PolicyPage, PolicyType, SocialLink, SocialPlatform } from '@/types/settings';
+import type { Faq, PolicyPage, PolicyType, SocialLink, SocialPlatform } from '@/types/settings';
 
 interface ContactFormValues {
   contactEmail?: string;
@@ -344,6 +349,147 @@ function PoliciesTab() {
   );
 }
 
+interface FaqFormValues {
+  question: string;
+  answer: string;
+  displayOrder: number;
+  isPublished: boolean;
+}
+
+function FaqTab() {
+  const [faqs, setFaqs] = useState<Faq[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<Faq | 'new' | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [form] = Form.useForm<FaqFormValues>();
+
+  function fetchFaqs() {
+    setLoading(true);
+    getFaqsAdmin()
+      .then(setFaqs)
+      .catch((error) => message.error(getErrorMessage(error, 'Unable to load FAQs.')))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(fetchFaqs, []);
+
+  function openAddModal() {
+    setEditing('new');
+    form.resetFields();
+    form.setFieldsValue({ displayOrder: faqs.length, isPublished: true });
+  }
+
+  function openEditModal(faq: Faq) {
+    setEditing(faq);
+    form.setFieldsValue(faq);
+  }
+
+  async function handleSave(values: FaqFormValues) {
+    setSaving(true);
+    try {
+      if (editing === 'new') {
+        await createFaq(values);
+        message.success('FAQ added.');
+      } else if (editing) {
+        await updateFaq(editing.id, values);
+        message.success('FAQ updated.');
+      }
+      setEditing(null);
+      fetchFaqs();
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Unable to save this FAQ. Please try again.'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: number) {
+    setDeletingId(id);
+    try {
+      await deleteFaq(id);
+      message.success('FAQ deleted.');
+      fetchFaqs();
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Unable to delete this FAQ.'));
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  const columns: ColumnsType<Faq> = [
+    { title: 'Order', dataIndex: 'displayOrder', width: 80 },
+    { title: 'Question', dataIndex: 'question' },
+    {
+      title: 'Status',
+      dataIndex: 'isPublished',
+      render: (isPublished: boolean) => <Tag color={isPublished ? 'success' : 'default'}>{isPublished ? 'Published' : 'Draft'}</Tag>,
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, faq) => (
+        <Space>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(faq)}>
+            Edit
+          </Button>
+          <Popconfirm title="Delete this FAQ?" okButtonProps={{ danger: true }} onConfirm={() => handleDelete(faq.id)}>
+            <Button size="small" danger icon={<DeleteOutlined />} loading={deletingId === faq.id}>
+              Delete
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <Card>
+      <Typography.Paragraph type="secondary">
+        Shown on the public FAQ page, in order. A draft (not published) is only visible here, never publicly.
+      </Typography.Paragraph>
+      <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal} style={{ marginBottom: 16 }}>
+        Add FAQ
+      </Button>
+
+      {loading ? (
+        <PageSpinner />
+      ) : (
+        <Table columns={columns} dataSource={faqs} rowKey="id" pagination={false} scroll={{ x: true }} />
+      )}
+
+      <Modal
+        title={editing === 'new' ? 'Add FAQ' : 'Edit FAQ'}
+        open={editing !== null}
+        onCancel={() => setEditing(null)}
+        footer={null}
+        destroyOnHidden
+      >
+        <Form<FaqFormValues> form={form} layout="vertical" onFinish={handleSave}>
+          <Form.Item label="Question" name="question" rules={[{ required: true, message: 'Question is required.' }]}>
+            <Input placeholder="e.g. What should I bring on the tour?" />
+          </Form.Item>
+          <Form.Item label="Answer" name="answer" rules={[{ required: true, message: 'Answer is required.' }]}>
+            <Input.TextArea rows={4} placeholder="Answer shown to customers..." />
+          </Form.Item>
+          <Form.Item label="Display Order" name="displayOrder" rules={[{ required: true, message: 'Display order is required.' }]}>
+            <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item label="Published" name="isPublished" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Space>
+            <Button type="primary" htmlType="submit" loading={saving}>
+              Save
+            </Button>
+            <Button onClick={() => setEditing(null)}>Cancel</Button>
+          </Space>
+        </Form>
+      </Modal>
+    </Card>
+  );
+}
+
 export default function AdminSettings() {
   const dirtyRef = useRef(false);
 
@@ -373,6 +519,7 @@ export default function AdminSettings() {
           { key: 'social', label: 'Social Media', children: <SocialMediaTab onDirtyChange={markDirty} /> },
           { key: 'about', label: 'About Us', children: <AboutUsTab onDirtyChange={markDirty} /> },
           { key: 'policies', label: 'Policies', children: <PoliciesTab /> },
+          { key: 'faqs', label: 'FAQs', children: <FaqTab /> },
         ]}
       />
     </div>

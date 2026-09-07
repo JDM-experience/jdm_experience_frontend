@@ -6,12 +6,15 @@ import type { ApiEnvelope } from '@/types/api';
 import type {
   AboutContent,
   ContactSettings,
+  CreateFaqInput,
+  Faq,
   PolicyPage,
   PolicyType,
   SocialLink,
   SocialPlatform,
   UpdateAboutContentInput,
   UpdateContactSettingsInput,
+  UpdateFaqInput,
   UpdatePolicyInput,
 } from '@/types/settings';
 
@@ -78,4 +81,30 @@ export async function getPolicyForAdmin(type: PolicyType): Promise<PolicyPage> {
 export async function updatePolicy(type: PolicyType, input: UpdatePolicyInput): Promise<PolicyPage> {
   const res = await httpClient.put<ApiEnvelope<PolicyPage>>(`/settings/policies/${type}`, input);
   return res.data;
+}
+
+/** Public: only published FAQs, in display order. */
+export async function getFaqs(): Promise<Faq[]> {
+  const res = await httpClient.get<ApiEnvelope<Faq[]>>('/faqs');
+  return res.data;
+}
+
+/** Staff-only: every FAQ, including unpublished drafts, for the admin editor table. */
+export async function getFaqsAdmin(): Promise<Faq[]> {
+  const res = await httpClient.get<ApiEnvelope<Faq[]>>('/faqs/admin');
+  return res.data;
+}
+
+export async function createFaq(input: CreateFaqInput): Promise<Faq> {
+  const res = await httpClient.post<ApiEnvelope<Faq>>('/faqs', input);
+  return res.data;
+}
+
+export async function updateFaq(id: number, input: UpdateFaqInput): Promise<Faq> {
+  const res = await httpClient.put<ApiEnvelope<Faq>>(`/faqs/${id}`, input);
+  return res.data;
+}
+
+export async function deleteFaq(id: number): Promise<void> {
+  await httpClient.delete<ApiEnvelope<null>>(`/faqs/${id}`);
 }

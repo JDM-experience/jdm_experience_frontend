@@ -7,6 +7,7 @@ import Register from '@/pages/Register';
 import About from '@/pages/About';
 import Contact from '@/pages/Contact';
 import Policy from '@/pages/Policy';
+import FAQ from '@/pages/FAQ';
 import Weather from '@/pages/Weather';
 
 /** Routes nested under `MainLayout` that need no authentication. */
@@ -18,6 +19,7 @@ export const publicRoutes: AppRoute[] = [
   { path: 'about', element: <About /> },
   { path: 'contact', element: <Contact /> },
   { path: 'policy', element: <Policy /> },
+  { path: 'faq', element: <FAQ /> },
 ];
 
 /** Routes that only make sense for a signed-out visitor — bounced elsewhere once authenticated. */

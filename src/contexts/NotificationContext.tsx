@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { message } from 'antd';
+import { message, notification } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   getMyNotifications,
@@ -36,10 +37,15 @@ const NotificationContext = createContext<NotificationContextValue | undefined>(
  */
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, isInitializing } = useAuth();
+  const navigate = useNavigate();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // The highest notification id already surfaced as a toast (or seen at all) -- starts null so
+  // the very first poll on page load never toasts the customer's entire pre-existing backlog,
+  // only notifications that arrive genuinely after that.
+  const lastSeenIdRef = useRef<number | null>(null);
 
   const refreshList = useCallback(() => {
     setLoading(true);
@@ -49,11 +55,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
+  const markAsReadRef = useRef<(id: number) => Promise<void>>(async () => undefined);
+
   useEffect(() => {
     if (isInitializing) return;
     if (!isAuthenticated) {
       setItems([]);
       setUnreadCount(0);
+      lastSeenIdRef.current = null;
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -63,7 +72,38 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
     const poll = () => {
       getUnreadNotificationCount()
-        .then(setUnreadCount)
+        .then((count) => {
+          setUnreadCount(count);
+          if (count === 0) return;
+          // Only fetch the small recent-list page (not the whole history) when there's actually
+          // something unread to check -- keeps the steady-state poll cost to the lightweight
+          // count endpoint alone.
+          getMyNotifications(1, 10)
+            .then((result) => {
+              const isFirstPoll = lastSeenIdRef.current === null;
+              const freshItems = isFirstPoll
+                ? []
+                : result.items.filter((n) => !n.isRead && n.id > (lastSeenIdRef.current ?? 0));
+              const highestId = result.items.reduce((max, n) => Math.max(max, n.id), lastSeenIdRef.current ?? 0);
+              lastSeenIdRef.current = highestId;
+
+              // Oldest first, so toasts appear in the order the events actually happened.
+              for (const n of [...freshItems].reverse()) {
+                notification.open({
+                  message: n.title,
+                  description: n.message,
+                  placement: 'topRight',
+                  onClick: () => {
+                    void markAsReadRef.current(n.id);
+                    navigate('/cart');
+                    notification.destroy(n.id.toString());
+                  },
+                  key: n.id.toString(),
+                });
+              }
+            })
+            .catch(() => undefined);
+        })
         .catch(() => undefined);
     };
     poll();
@@ -75,7 +115,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         intervalRef.current = null;
       }
     };
-  }, [isAuthenticated, isInitializing]);
+  }, [isAuthenticated, isInitializing, navigate]);
 
   const markAsRead = useCallback(async (id: number) => {
     try {
@@ -86,6 +126,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       message.error(getErrorMessage(error, 'Unable to update this notification.'));
     }
   }, []);
+  markAsReadRef.current = markAsRead;
 
   const markAllAsRead = useCallback(async () => {
     try {

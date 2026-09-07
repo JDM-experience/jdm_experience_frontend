@@ -3,7 +3,9 @@ import { Button, DatePicker, Descriptions, Input, Modal, Select, Space, Table, T
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { ClearOutlined } from '@ant-design/icons';
+import { EmptyState } from '@/components/common/EmptyState';
 import { PageSpinner } from '@/components/common/PageSpinner';
+import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { listAuditLogs } from '@/services/auditLogService';
 import { formatDateTime } from '@/utils/formatters';
 import { getErrorMessage } from '@/utils/errors';
@@ -45,6 +47,12 @@ const ENTITY_OPTIONS = [
 ];
 
 export default function AuditTrail() {
+  const { admin } = useAdminAuth();
+  // Matches admin/Users's self-gate: the backend already 403s a Tour Guide's requests
+  // regardless, but without this the page would render its full shell and only fail after a
+  // confusing loading spinner + generic error toast.
+  const canView = admin?.role === 'SUPER_ADMIN' || admin?.role === 'ADMIN';
+
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -77,8 +85,18 @@ export default function AuditTrail() {
       .finally(() => setLoading(false));
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(fetchLogs, [search, role, entity, dateRange, page, pageSize]);
+  useEffect(() => {
+    if (canView) fetchLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canView, search, role, entity, dateRange, page, pageSize]);
+
+  if (!canView) {
+    return (
+      <div style={{ padding: '80px 24px' }}>
+        <EmptyState title="You are not authorized to view this page." description="Only a Super Admin or Admin can view the audit trail." />
+      </div>
+    );
+  }
 
   function handleClearFilters() {
     setSearch('');

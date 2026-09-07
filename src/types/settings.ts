@@ -49,3 +49,25 @@ export interface UpdatePolicyInput {
   title?: string;
   content?: string;
 }
+
+export interface Faq {
+  id: number;
+  question: string;
+  answer: string;
+  displayOrder: number;
+  isPublished: boolean;
+}
+
+export interface CreateFaqInput {
+  question: string;
+  answer: string;
+  displayOrder?: number;
+  isPublished?: boolean;
+}
+
+export interface UpdateFaqInput {
+  question?: string;
+  answer?: string;
+  displayOrder?: number;
+  isPublished?: boolean;
+}

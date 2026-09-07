@@ -52,6 +52,9 @@ export function Footer() {
             <Link to="/policy" style={{ color: '#fff' }}>
               Policies
             </Link>
+            <Link to="/faq" style={{ color: '#fff' }}>
+              FAQ
+            </Link>
           </div>
 
           {visibleLinks.length > 0 && (

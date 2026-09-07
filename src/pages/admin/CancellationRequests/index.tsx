@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Button, Descriptions, Empty, Image, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography, Upload, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { CheckCircleOutlined, CloseCircleOutlined, UploadOutlined } from '@ant-design/icons';
+import { EmptyState } from '@/components/common/EmptyState';
 import { PageSpinner } from '@/components/common/PageSpinner';
+import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import {
   addRefundProof,
   approveCancellationRequest,
@@ -37,6 +39,12 @@ const STATUS_FILTER_OPTIONS: { value: '' | CancellationRequestStatus; label: str
 ];
 
 export default function AdminCancellationRequests() {
+  const { admin } = useAdminAuth();
+  // Matches admin/Users's self-gate: the backend already 403s a Tour Guide's requests
+  // regardless, but without this the page would render its full shell and only fail after a
+  // confusing loading spinner + generic error toast.
+  const canView = admin?.role === 'SUPER_ADMIN' || admin?.role === 'ADMIN';
+
   const [requests, setRequests] = useState<CancellationRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -74,8 +82,18 @@ export default function AdminCancellationRequests() {
       .finally(() => setLoading(false));
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(fetchRequests, [statusFilter]);
+  useEffect(() => {
+    if (canView) fetchRequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canView, statusFilter]);
+
+  if (!canView) {
+    return (
+      <div style={{ padding: '80px 24px' }}>
+        <EmptyState title="You are not authorized to view this page." description="Only a Super Admin or Admin can view cancellation requests." />
+      </div>
+    );
+  }
 
   async function handleApprove(id: number) {
     setBusyId(id);
