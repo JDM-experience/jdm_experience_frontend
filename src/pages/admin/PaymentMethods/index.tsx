@@ -151,7 +151,7 @@ export default function AdminPaymentMethods() {
       title: 'Actions',
       key: 'actions',
       render: (_, method) => (
-        <Space>
+        <Space wrap>
           <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(method)}>
             Edit
           </Button>
@@ -182,7 +182,7 @@ export default function AdminPaymentMethods() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Typography.Title level={3} style={{ margin: 0 }}>
           Payment Methods
         </Typography.Title>

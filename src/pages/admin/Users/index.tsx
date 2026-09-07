@@ -161,7 +161,7 @@ export default function AdminUsers() {
             title: 'Actions',
             key: 'actions',
             render: (_: unknown, user: ManagedUser) => (
-              <Space>
+              <Space wrap>
                 {user.role !== 'SUPER_ADMIN' && (
                   <Button size="small" onClick={() => openEditModal(user)}>
                     Edit
@@ -187,7 +187,7 @@ export default function AdminUsers() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Typography.Title level={3} style={{ margin: 0 }}>
           User Management
         </Typography.Title>

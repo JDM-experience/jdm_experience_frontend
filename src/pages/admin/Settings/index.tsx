@@ -336,7 +336,7 @@ function PoliciesTab() {
             <Form.Item label="Content" name="content" rules={[{ required: true, message: 'Content is required.' }]}>
               <RichTextEditor placeholder="Policy content..." />
             </Form.Item>
-            <Space>
+            <Space wrap>
               <Button type="primary" htmlType="submit" loading={saving}>
                 Save Changes
               </Button>
@@ -429,7 +429,7 @@ function FaqTab() {
       title: 'Actions',
       key: 'actions',
       render: (_, faq) => (
-        <Space>
+        <Space wrap>
           <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(faq)}>
             Edit
           </Button>
@@ -478,7 +478,7 @@ function FaqTab() {
           <Form.Item label="Published" name="isPublished" valuePropName="checked">
             <Switch />
           </Form.Item>
-          <Space>
+          <Space wrap>
             <Button type="primary" htmlType="submit" loading={saving}>
               Save
             </Button>

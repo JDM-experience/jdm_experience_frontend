@@ -240,7 +240,7 @@ export default function AdminCancellationRequests() {
         onCancel={() => setDetailTarget(null)}
         footer={
           detailTarget && (
-            <Space>
+            <Space wrap>
               {detailTarget.status === 'APPROVED' && (
                 <Upload accept={IMAGE_ACCEPT} showUploadList={false} beforeUpload={(file) => handleUploadProof(detailTarget, file)}>
                   <Button icon={<UploadOutlined />} loading={uploadingProof}>

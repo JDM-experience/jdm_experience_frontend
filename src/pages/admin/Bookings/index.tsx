@@ -158,7 +158,7 @@ export default function AdminBookings() {
       key: 'actions',
       render: (_, booking) =>
         booking.status === 'PENDING' ? (
-          <Space>
+          <Space wrap>
             <Popconfirm title={`Confirm booking JDM-${booking.id}?`} onConfirm={() => handleConfirm(booking.id)}>
               <Button size="small" type="primary" icon={<CheckCircleOutlined />} loading={busyId === booking.id}>
                 Confirm

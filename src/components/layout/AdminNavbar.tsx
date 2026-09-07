@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Layout, Menu, Space, Typography } from 'antd';
-import { LogoutOutlined } from '@ant-design/icons';
+import { Button, Drawer, Grid, Layout, Menu, Space, Typography } from 'antd';
+import { LogoutOutlined, MenuOutlined } from '@ant-design/icons';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 
 const BASE_NAV_LINKS = [
@@ -17,6 +17,12 @@ export function AdminNavbar() {
   const { admin, logout } = useAdminAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const screens = Grid.useBreakpoint();
+  // Same breakpoint convention as the customer Navbar (Grid.useBreakpoint's `md`) -- below that,
+  // the horizontal Menu has nowhere near enough room for this many admin links.
+  const isMobile = !screens.md;
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   const isSuperAdmin = admin?.role === 'SUPER_ADMIN';
   const isStaff = isSuperAdmin || admin?.role === 'ADMIN';
 
@@ -42,6 +48,13 @@ export function AdminNavbar() {
   );
 
   const selectedKey = navLinks.find((link) => location.pathname.startsWith(link.key))?.key;
+  const selectedKeys = selectedKey ? [selectedKey] : [];
+  const adminDisplayName = admin?.username ?? admin?.fullName ?? admin?.email;
+
+  function handleLogout() {
+    logout();
+    navigate('/admin/login');
+  }
 
   return (
     <Layout.Header
@@ -50,33 +63,70 @@ export function AdminNavbar() {
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: 16,
-        paddingInline: 24,
+        paddingInline: isMobile ? 16 : 24,
         background: '#0F1117',
         borderBottom: '1px solid #303849',
       }}
     >
-      <Link to="/admin/dashboard" style={{ color: '#fff', fontWeight: 700, whiteSpace: 'nowrap' }}>
-        Japan JDM Experience Tours Admin
+      <Link
+        to="/admin/dashboard"
+        style={{ color: '#fff', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+      >
+        {isMobile ? 'JDM Admin' : 'Japan JDM Experience Tours Admin'}
       </Link>
 
-      <Menu
-        theme="dark"
-        mode="horizontal"
-        selectedKeys={selectedKey ? [selectedKey] : []}
-        items={menuItems}
-        style={{ flex: 1, minWidth: 0, background: 'transparent' }}
-      />
+      {!isMobile && (
+        <>
+          <Menu
+            theme="dark"
+            mode="horizontal"
+            selectedKeys={selectedKeys}
+            items={menuItems}
+            style={{ flex: 1, minWidth: 0, background: 'transparent' }}
+          />
+          <Space>
+            <Typography.Text style={{ color: '#fff' }}>Welcome, {adminDisplayName}</Typography.Text>
+            <LogoutOutlined
+              aria-label="Log out"
+              style={{ color: '#fff', cursor: 'pointer', fontSize: 16 }}
+              onClick={handleLogout}
+            />
+          </Space>
+        </>
+      )}
 
-      <Space>
-        <Typography.Text style={{ color: '#fff' }}>Welcome, {admin?.username ?? admin?.fullName ?? admin?.email}</Typography.Text>
-        <LogoutOutlined
-          style={{ color: '#fff', cursor: 'pointer', fontSize: 16 }}
-          onClick={() => {
-            logout();
-            navigate('/admin/login');
-          }}
+      {isMobile && (
+        <Button
+          type="text"
+          shape="circle"
+          icon={<MenuOutlined style={{ color: '#fff' }} />}
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Open admin menu"
         />
-      </Space>
+      )}
+
+      <Drawer
+        title={adminDisplayName ?? 'Menu'}
+        placement="right"
+        onClose={() => setDrawerOpen(false)}
+        open={drawerOpen}
+        styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column' } }}
+      >
+        <Menu
+          theme="dark"
+          mode="vertical"
+          selectable
+          selectedKeys={selectedKeys}
+          onClick={() => setDrawerOpen(false)}
+          items={menuItems}
+          style={{ background: 'transparent', borderInlineEnd: 'none', flex: 1 }}
+        />
+        <div style={{ padding: 16, borderTop: '1px solid #303849' }}>
+          <Button block danger icon={<LogoutOutlined />} onClick={handleLogout}>
+            Log Out
+          </Button>
+        </div>
+      </Drawer>
     </Layout.Header>
   );
 }

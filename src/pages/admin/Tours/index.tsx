@@ -131,7 +131,7 @@ export default function AdminTours() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Typography.Title level={3} style={{ margin: 0 }}>
           Manage Tours
         </Typography.Title>

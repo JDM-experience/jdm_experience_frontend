@@ -207,6 +207,7 @@ export default function AdminDashboard() {
             columns={TOUR_PERFORMANCE_COLUMNS}
             dataSource={summary.tourPerformance}
             rowKey="tourId"
+            scroll={{ x: true }}
             pagination={{ pageSize: 10, hideOnSinglePage: true }}
             locale={{ emptyText: 'No bookings in this date range.' }}
           />
