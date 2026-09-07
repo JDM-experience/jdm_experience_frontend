@@ -24,6 +24,10 @@ export interface Booking {
   customerPhone: string | null;
   paymentMethodId: number | null;
   paymentMethodName: string | null;
+  /** Resolved Tour Guide WhatsApp contact for this booking's tour: the tour's own Contact
+   *  Settings number if set, else the assigned Tour Guide's profile number, else null. Same value
+   *  the confirmation email uses — see resolveTourWhatsapp on the backend. */
+  tourGuideWhatsapp: string | null;
   createdAt: string;
 }
 

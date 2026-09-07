@@ -24,6 +24,7 @@ import { ALLOWED_IMAGE_TYPES, uploadPaymentProofImage } from '@/services/uploadS
 import { formatCurrency } from '@/utils/formatters';
 import { isMoreThan24HoursBeforeBooking } from '@/utils/bookingUtils';
 import { getErrorMessage } from '@/utils/errors';
+import { buildWaMeLink } from '@/utils/whatsapp';
 import type { Booking, BookingStatus } from '@/types/booking';
 import type { CancellationRequest, CancellationRequestStatus } from '@/types/cancellationRequest';
 import type { PaymentMethod } from '@/types/paymentMethod';
@@ -591,6 +592,17 @@ export default function MyBookings() {
             </Descriptions.Item>
             <Descriptions.Item label="Total Price">{formatCurrency(detailsTarget.totalPrice)}</Descriptions.Item>
             <Descriptions.Item label="Payment Method">{detailsTarget.paymentMethodName ?? '—'}</Descriptions.Item>
+            {detailsTarget.status === 'CONFIRMED' && (
+              <Descriptions.Item label="Tour Guide WhatsApp">
+                {detailsTarget.tourGuideWhatsapp ? (
+                  <a href={buildWaMeLink(detailsTarget.tourGuideWhatsapp)} target="_blank" rel="noreferrer">
+                    {detailsTarget.tourGuideWhatsapp} — Contact Tour Guide via WhatsApp
+                  </a>
+                ) : (
+                  'Not available'
+                )}
+              </Descriptions.Item>
+            )}
             <Descriptions.Item label="Contact Name">{detailsTarget.customerName ?? '—'}</Descriptions.Item>
             <Descriptions.Item label="Contact Email">{detailsTarget.customerEmail ?? '—'}</Descriptions.Item>
             <Descriptions.Item label="Contact Phone">{detailsTarget.customerPhone ?? '—'}</Descriptions.Item>

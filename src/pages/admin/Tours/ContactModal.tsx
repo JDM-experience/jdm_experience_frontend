@@ -11,24 +11,28 @@ interface ContactModalProps {
   onClose: () => void;
 }
 
-/** Customer-facing contact info (shown to the customer once a booking is CONFIRMED) —
- *  SUPER_ADMIN/ADMIN may manage any tour's; a Tour Guide only their own (enforced server-side). */
+/** Contact Settings (shown to the customer once a booking is CONFIRMED, and included in the
+ *  confirmation email) — SUPER_ADMIN/ADMIN may manage any tour's; a Tour Guide only their own
+ *  (enforced server-side). The phone field here IS the tour's WhatsApp contact — customers reach
+ *  the guide through it, so it's always labeled and treated as WhatsApp, never a bare "phone". */
 export function ContactModal({ open, tour, onClose }: ContactModalProps) {
   const [form] = Form.useForm<TourContact>();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [resolvedWhatsapp, setResolvedWhatsapp] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && tour) {
       setLoading(true);
       getTourContact(tour.id)
-        .then((contact) =>
+        .then((contact) => {
           form.setFieldsValue({
             contactName: contact.contactName ?? '',
             contactEmail: contact.contactEmail ?? '',
             contactPhone: contact.contactPhone ?? '',
-          }),
-        )
+          });
+          setResolvedWhatsapp(contact.resolvedWhatsapp);
+        })
         .catch((error) => message.error(getErrorMessage(error, 'Unable to load contact information.')))
         .finally(() => setLoading(false));
     }
@@ -55,7 +59,7 @@ export function ContactModal({ open, tour, onClose }: ContactModalProps) {
 
   return (
     <Modal
-      title={`Customer Contact${tour ? ` — ${tour.name}` : ''}`}
+      title={`Contact Settings${tour ? ` — ${tour.name}` : ''}`}
       open={open}
       onCancel={onClose}
       onOk={() => form.submit()}
@@ -76,9 +80,18 @@ export function ContactModal({ open, tour, onClose }: ContactModalProps) {
           <Form.Item label="Contact Email" name="contactEmail" rules={[{ type: 'email', message: 'Enter a valid email address.' }]}>
             <Input placeholder="john@example.com" />
           </Form.Item>
-          <Form.Item label="Contact Phone" name="contactPhone">
+          <Form.Item
+            label="Tour Guide WhatsApp Number"
+            name="contactPhone"
+            extra="This number will be shown to customers and included in the confirmation email for this tour. If left blank, the assigned Tour Guide's WhatsApp number will be used when available."
+          >
             <Input placeholder="+81-90-1234-5678" />
           </Form.Item>
+          <Typography.Paragraph type="secondary" style={{ marginTop: -8, fontSize: 12 }}>
+            {resolvedWhatsapp
+              ? `Currently used for this tour: ${resolvedWhatsapp}`
+              : 'No WhatsApp number is currently available for this tour (neither Contact Settings nor the assigned Tour Guide has one).'}
+          </Typography.Paragraph>
         </Form>
       )}
     </Modal>

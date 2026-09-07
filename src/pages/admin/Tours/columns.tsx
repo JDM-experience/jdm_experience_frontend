@@ -143,7 +143,7 @@ export function getTourColumns({
             )}
             {canEdit && <Button size="small" icon={<EditOutlined />} onClick={() => onEdit(tour)} />}
             {canEdit && (
-              <Button size="small" icon={<ContactsOutlined />} onClick={() => onManageContact(tour)} title="Customer-facing contact info" />
+              <Button size="small" icon={<ContactsOutlined />} onClick={() => onManageContact(tour)} title="Contact Settings (Tour Guide WhatsApp)" />
             )}
             {canDelete && (
               <Popconfirm title={`Delete ${tour.name}?`} onConfirm={() => onDelete(tour.id)}>

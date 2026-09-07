@@ -110,13 +110,19 @@ export interface UpdateTourImageInput {
   focalY?: number;
 }
 
-/** Customer-facing contact info shown once a booking on this tour is CONFIRMED (in the
+/** Customer-facing Contact Settings, shown once a booking on this tour is CONFIRMED (in the
  *  confirmation email) — deliberately separate from the guide's own account email/phone.
- *  Fields are null until ever set. Editable by the tour's own owner or staff. */
+ *  Fields are null until ever set. Editable by the tour's own owner or staff.
+ *  `contactPhone` IS the tour's "Tour Guide WhatsApp Number" -- no separate whatsapp field exists,
+ *  this one is reused and always treated/labeled as a WhatsApp contact. */
 export interface TourContact {
   contactName: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
+  /** Read-only: contactPhone if set, else the assigned Tour Guide's own profile number, else
+   *  null — the number that will actually be used everywhere (customer display, confirmation
+   *  email) for this tour. */
+  resolvedWhatsapp: string | null;
 }
 
 export interface UpdateTourContactInput {
