@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Button, Form, Input, InputNumber, Modal, Select, Space, Typography, Upload, message } from 'antd';
-import { DeleteOutlined, UploadOutlined } from '@ant-design/icons';
-import { ProductImage } from '@/components/common/ProductImage';
+import { DeleteOutlined, EyeOutlined, UploadOutlined } from '@ant-design/icons';
+import { ProductImage, resolveSrc } from '@/components/common/ProductImage';
 import { createTour } from '@/services/tourService';
 import { uploadTourImage } from '@/services/uploadService';
 import { getErrorMessage } from '@/utils/errors';
 import { slugify } from '@/utils/formatters';
 import { IMAGE_ACCEPT } from './constants';
+import { ImageCropGuide } from './ImageCropGuide';
 import type { TourFormValues } from './types';
 
 interface CreateTourModalProps {
@@ -23,12 +24,14 @@ export function CreateTourModal({ open, onClose, onCreated, isStaff, guideOption
   const [slugEdited, setSlugEdited] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       form.resetFields();
       setSlugEdited(false);
       setImages([]);
+      setPreviewUrl(null);
     }
   }, [open, form]);
 
@@ -141,7 +144,15 @@ export function CreateTourModal({ open, onClose, onCreated, isStaff, guideOption
                   <ProductImage
                     fileName={url}
                     alt={`Tour image ${index + 1}`}
-                    style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 4 }}
+                    style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 4, cursor: 'pointer' }}
+                    onClick={() => setPreviewUrl(url)}
+                  />
+                  <Button
+                    size="small"
+                    icon={<EyeOutlined />}
+                    aria-label="Preview how this image will be cropped on the site"
+                    onClick={() => setPreviewUrl(url)}
+                    style={{ position: 'absolute', bottom: -8, left: -8 }}
                   />
                   <Button
                     size="small"
@@ -161,6 +172,37 @@ export function CreateTourModal({ open, onClose, onCreated, isStaff, guideOption
           </Upload>
         </Form.Item>
       </Form>
+
+      <Modal
+        title="Image Crop Preview"
+        open={previewUrl !== null}
+        onCancel={() => setPreviewUrl(null)}
+        footer={<Button onClick={() => setPreviewUrl(null)}>Close</Button>}
+        width={480}
+      >
+        {previewUrl && (
+          <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+            <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+              Images are always cropped from the center. The dimmed area below will be cut off —
+              only the outlined area will actually be visible.
+            </Typography.Paragraph>
+            <ImageCropGuide
+              src={resolveSrc(previewUrl)}
+              alt="Tour image preview"
+              ratio={1.4}
+              label="Tours Grid Card"
+              description="Shown on the Home page and the Tours listing."
+            />
+            <ImageCropGuide
+              src={resolveSrc(previewUrl)}
+              alt="Tour image preview"
+              ratio={2.6}
+              label="Featured Tours Hero (desktop)"
+              description="Shown at the top of the Home page when this is one of the first 3 tours. Much wider than the card, so this crops more aggressively -- on mobile it's closer to the card's shape instead."
+            />
+          </Space>
+        )}
+      </Modal>
     </Modal>
   );
 }

@@ -10,7 +10,7 @@ interface ProductImageProps {
 }
 
 /** Absolute URLs (real tour images) render as-is; bare filenames (legacy mock images) get IMAGE_BASE_PATH prefixed. */
-function resolveSrc(fileName: string): string {
+export function resolveSrc(fileName: string): string {
   return /^(https?:)?\/\//.test(fileName) || fileName.startsWith('data:') ? fileName : `${IMAGE_BASE_PATH}${fileName}`;
 }
 
