@@ -18,6 +18,15 @@ L.Icon.Default.mergeOptions({
 
 const ROUTE_POSITIONS: [number, number][] = TOUR_ITINERARY.map((stop) => [stop.latitude, stop.longitude]);
 
+// CARTO's raster basemaps now require an API key (free tier, 5M tile requests/month) to drop the
+// "API key required" watermark -- set in this deployment's environment, never committed to the
+// repo (same convention as the Auth0 vars below it in .env.example). Falls back to the
+// unauthenticated (watermarked) URL if unset, so local dev without the var still works.
+const CARTO_API_KEY = import.meta.env.VITE_CARTO_API_KEY as string | undefined;
+const CARTO_TILE_URL = `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png${
+  CARTO_API_KEY ? `?key=${CARTO_API_KEY}` : ''
+}`;
+
 /** Every tour follows the same fixed itinerary, so this map is identical across tour pages. */
 export function TourItineraryMap() {
   return (
@@ -35,7 +44,7 @@ export function TourItineraryMap() {
               showing street and building detail (unlike the flatter Positron/light_all style). */}
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+            url={CARTO_TILE_URL}
           />
           <Polyline positions={ROUTE_POSITIONS} pathOptions={{ color: '#000000', weight: 3 }} />
           {TOUR_ITINERARY.map((stop, index) => (
