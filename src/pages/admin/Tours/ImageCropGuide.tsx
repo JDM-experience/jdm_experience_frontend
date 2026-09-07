@@ -6,34 +6,46 @@ interface ImageCropGuideProps {
   alt: string;
   /** Target width/height aspect ratio the image is displayed at elsewhere on the site (e.g. 1.4
    *  for the Tours grid card, ~2.6 for the Featured Tours hero on desktop) -- object-fit: cover
-   *  crops to exactly this shape, centered, wherever the image is actually shown. */
+   *  crops to this shape wherever the image is actually shown. */
   ratio: number;
   label: string;
   description: string;
+  /** Focal point (0-100% of image width/height) fed to CSS `object-position` on the live site --
+   *  defaults to centered (50/50), matching the browser's own object-fit: cover default. */
+  focalX?: number;
+  focalY?: number;
 }
 
 /**
  * Shows the full uploaded image with a dimmed mask everywhere EXCEPT the region that will
- * actually be visible once the site crops it to `ratio` (object-fit: cover always crops from the
- * center, matching the browser default used everywhere ProductImage is rendered) -- so an admin
- * can tell, before saving, whether the important part of a photo (e.g. a person's face) will be
- * cut off, without needing an actual cropping tool.
+ * actually be visible once the site crops it to `ratio` at the given focal point (mirrors exactly
+ * how CSS `object-fit: cover` + `object-position` computes the visible crop window) -- so an
+ * admin can tell, before saving, whether the important part of a photo (e.g. a car) will be cut
+ * off.
  */
-export function ImageCropGuide({ src, alt, ratio, label, description }: ImageCropGuideProps) {
-  const [box, setBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+export function ImageCropGuide({ src, alt, ratio, label, description, focalX = 50, focalY = 50 }: ImageCropGuideProps) {
+  const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
 
   function handleLoad(e: SyntheticEvent<HTMLImageElement>) {
     const img = e.currentTarget;
-    const imgRatio = img.naturalWidth / img.naturalHeight;
-    if (imgRatio > ratio) {
-      // Source is wider than the target shape -- cover crops the left/right edges, full height visible.
-      const width = (ratio / imgRatio) * 100;
-      setBox({ left: (100 - width) / 2, top: 0, width, height: 100 });
-    } else {
-      // Source is taller/narrower than the target shape -- cover crops the top/bottom, full width visible.
-      const height = (imgRatio / ratio) * 100;
-      setBox({ left: 0, top: (100 - height) / 2, width: 100, height });
-    }
+    setNatural({ width: img.naturalWidth, height: img.naturalHeight });
+  }
+
+  let box: { left: number; top: number; width: number; height: number } | null = null;
+  if (natural) {
+    const imgRatio = natural.width / natural.height;
+    // Same two cases as object-fit: cover -- crop window is full-height (source wider than target)
+    // or full-width (source narrower), sized in percent of the whole image.
+    const width = imgRatio > ratio ? (ratio / imgRatio) * 100 : 100;
+    const height = imgRatio > ratio ? 100 : (imgRatio / ratio) * 100;
+    // Mirrors CSS object-position's own formula: the crop window's offset is `focal%` of the
+    // leftover (100 - windowSize)% slack -- at focal=50 this reduces to the old centered formula.
+    box = {
+      left: (focalX / 100) * (100 - width),
+      top: (focalY / 100) * (100 - height),
+      width,
+      height,
+    };
   }
 
   return (

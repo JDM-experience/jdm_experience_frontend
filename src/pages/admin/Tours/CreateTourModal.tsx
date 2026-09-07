@@ -8,6 +8,7 @@ import { getErrorMessage } from '@/utils/errors';
 import { slugify } from '@/utils/formatters';
 import { IMAGE_ACCEPT } from './constants';
 import { ImageCropGuide } from './ImageCropGuide';
+import { ImageFocalPointPicker } from './ImageFocalPointPicker';
 import type { TourFormValues } from './types';
 
 interface CreateTourModalProps {
@@ -18,13 +19,21 @@ interface CreateTourModalProps {
   guideOptions: { value: number; label: string }[];
 }
 
+interface DraftImage {
+  imageUrl: string;
+  focalX: number;
+  focalY: number;
+}
+
 export function CreateTourModal({ open, onClose, onCreated, isStaff, guideOptions }: CreateTourModalProps) {
   const [form] = Form.useForm<TourFormValues>();
   const [creating, setCreating] = useState(false);
   const [slugEdited, setSlugEdited] = useState(false);
-  const [images, setImages] = useState<string[]>([]);
+  const [images, setImages] = useState<DraftImage[]>([]);
   const [uploading, setUploading] = useState(false);
+  // Which image the "reposition" editor is open for, by URL (URLs are unique within this draft list).
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [draftFocal, setDraftFocal] = useState({ x: 50, y: 50 });
 
   useEffect(() => {
     if (open) {
@@ -35,17 +44,30 @@ export function CreateTourModal({ open, onClose, onCreated, isStaff, guideOption
     }
   }, [open, form]);
 
+  useEffect(() => {
+    const target = images.find((img) => img.imageUrl === previewUrl);
+    if (target) setDraftFocal({ x: target.focalX, y: target.focalY });
+  }, [previewUrl, images]);
+
   async function handleUploadImage(file: File) {
     setUploading(true);
     try {
       const imageUrl = await uploadTourImage(file);
-      setImages((prev) => [...prev, imageUrl]);
+      setImages((prev) => [...prev, { imageUrl, focalX: 50, focalY: 50 }]);
     } catch (error) {
       message.error(getErrorMessage(error, 'Unable to upload this image.'));
     } finally {
       setUploading(false);
     }
     return Upload.LIST_IGNORE;
+  }
+
+  function handleSavePosition() {
+    if (!previewUrl) return;
+    setImages((prev) =>
+      prev.map((img) => (img.imageUrl === previewUrl ? { ...img, focalX: draftFocal.x, focalY: draftFocal.y } : img)),
+    );
+    setPreviewUrl(null);
   }
 
   function handleValuesChange(changed: Partial<TourFormValues>) {
@@ -68,7 +90,9 @@ export function CreateTourModal({ open, onClose, onCreated, isStaff, guideOption
         currency: values.currency,
         seats: values.seats,
         guideId: values.guideId,
-        images: images.length ? images.map((imageUrl, sortOrder) => ({ imageUrl, sortOrder })) : undefined,
+        images: images.length
+          ? images.map((img, sortOrder) => ({ imageUrl: img.imageUrl, sortOrder, focalX: img.focalX, focalY: img.focalY }))
+          : undefined,
       });
       message.success('Tour created — it starts Pending until an Admin confirms it.');
       onClose();
@@ -139,19 +163,26 @@ export function CreateTourModal({ open, onClose, onCreated, isStaff, guideOption
         <Form.Item label="Images" extra="JPEG, PNG, WebP or AVIF, up to 5 MB each.">
           {images.length > 0 && (
             <Space wrap style={{ marginBottom: 8 }}>
-              {images.map((url, index) => (
-                <div key={url} style={{ position: 'relative' }}>
+              {images.map((img, index) => (
+                <div key={img.imageUrl} style={{ position: 'relative' }}>
                   <ProductImage
-                    fileName={url}
+                    fileName={img.imageUrl}
                     alt={`Tour image ${index + 1}`}
-                    style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 4, cursor: 'pointer' }}
-                    onClick={() => setPreviewUrl(url)}
+                    style={{
+                      width: 72,
+                      height: 72,
+                      objectFit: 'cover',
+                      objectPosition: `${img.focalX}% ${img.focalY}%`,
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => setPreviewUrl(img.imageUrl)}
                   />
                   <Button
                     size="small"
                     icon={<EyeOutlined />}
-                    aria-label="Preview how this image will be cropped on the site"
-                    onClick={() => setPreviewUrl(url)}
+                    aria-label="Reposition and preview how this image will be cropped on the site"
+                    onClick={() => setPreviewUrl(img.imageUrl)}
                     style={{ position: 'absolute', bottom: -8, left: -8 }}
                   />
                   <Button
@@ -159,7 +190,7 @@ export function CreateTourModal({ open, onClose, onCreated, isStaff, guideOption
                     danger
                     icon={<DeleteOutlined />}
                     style={{ position: 'absolute', top: -8, right: -8 }}
-                    onClick={() => setImages((prev) => prev.filter((u) => u !== url))}
+                    onClick={() => setImages((prev) => prev.filter((i) => i.imageUrl !== img.imageUrl))}
                   />
                 </div>
               ))}
@@ -174,17 +205,30 @@ export function CreateTourModal({ open, onClose, onCreated, isStaff, guideOption
       </Form>
 
       <Modal
-        title="Image Crop Preview"
+        title="Reposition Image"
         open={previewUrl !== null}
         onCancel={() => setPreviewUrl(null)}
-        footer={<Button onClick={() => setPreviewUrl(null)}>Close</Button>}
+        footer={[
+          <Button key="cancel" onClick={() => setPreviewUrl(null)}>
+            Cancel
+          </Button>,
+          <Button key="save" type="primary" onClick={handleSavePosition}>
+            Save Position
+          </Button>,
+        ]}
         width={480}
       >
         {previewUrl && (
           <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+            <ImageFocalPointPicker
+              src={resolveSrc(previewUrl)}
+              alt="Tour image preview"
+              focalX={draftFocal.x}
+              focalY={draftFocal.y}
+              onChange={(x, y) => setDraftFocal({ x, y })}
+            />
             <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-              Images are always cropped from the center. The dimmed area below will be cut off —
-              only the outlined area will actually be visible.
+              The dimmed area below will be cut off — only the outlined area will actually be visible.
             </Typography.Paragraph>
             <ImageCropGuide
               src={resolveSrc(previewUrl)}
@@ -192,6 +236,8 @@ export function CreateTourModal({ open, onClose, onCreated, isStaff, guideOption
               ratio={1.4}
               label="Tours Grid Card"
               description="Shown on the Home page and the Tours listing."
+              focalX={draftFocal.x}
+              focalY={draftFocal.y}
             />
             <ImageCropGuide
               src={resolveSrc(previewUrl)}
@@ -199,6 +245,8 @@ export function CreateTourModal({ open, onClose, onCreated, isStaff, guideOption
               ratio={2.6}
               label="Featured Tours Hero (desktop)"
               description="Shown at the top of the Home page when this is one of the first 3 tours. Much wider than the card, so this crops more aggressively -- on mobile it's closer to the card's shape instead."
+              focalX={draftFocal.x}
+              focalY={draftFocal.y}
             />
           </Space>
         )}

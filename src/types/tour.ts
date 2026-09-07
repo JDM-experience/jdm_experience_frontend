@@ -26,6 +26,10 @@ export interface TourImage {
   id: number;
   imageUrl: string;
   sortOrder: number;
+  /** Focal point as a percentage (0-100) of image width/height — feed directly into CSS
+   *  `object-position: {focalX}% {focalY}%` wherever this image renders with `object-fit: cover`. */
+  focalX: number;
+  focalY: number;
 }
 
 export interface Tour {
@@ -73,6 +77,13 @@ export interface UpdateTourInput {
 export interface CreateTourImageInput {
   imageUrl: string;
   sortOrder?: number;
+  focalX?: number;
+  focalY?: number;
+}
+
+export interface UpdateTourImageInput {
+  focalX?: number;
+  focalY?: number;
 }
 
 /** Customer-facing contact info shown once a booking on this tour is CONFIRMED (in the

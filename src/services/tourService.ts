@@ -14,6 +14,7 @@ import type {
   TourSortBy,
   TourStatus,
   UpdateTourContactInput,
+  UpdateTourImageInput,
   UpdateTourInput,
 } from '@/types/tour';
 
@@ -85,6 +86,13 @@ export async function addTourImage(tourId: number, input: CreateTourImageInput):
 
 export async function removeTourImage(tourId: number, imageId: number): Promise<void> {
   await httpClient.delete<ApiEnvelope<null>>(`/tours/${tourId}/images/${imageId}`);
+}
+
+/** Sets an image's focal point (0-100% of width/height) — where it should stay centered when
+ *  cropped by `object-fit: cover` at any placement (grid card, hero, detail page, etc). */
+export async function updateTourImage(tourId: number, imageId: number, input: UpdateTourImageInput): Promise<TourImage> {
+  const res = await httpClient.patch<ApiEnvelope<TourImage>>(`/tours/${tourId}/images/${imageId}`, input);
+  return res.data;
 }
 
 /** Staff (SUPER_ADMIN/ADMIN) or the tour's own guide only -- backend enforces ownership. Fields

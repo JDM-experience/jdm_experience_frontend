@@ -226,7 +226,13 @@ export default function ReservationCheckout() {
               <ProductImage
                 fileName={tour.images[0]?.imageUrl ?? ''}
                 alt={tour.name}
-                style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 8 }}
+                style={{
+                  width: '100%',
+                  height: 160,
+                  objectFit: 'cover',
+                  objectPosition: `${tour.images[0]?.focalX ?? 50}% ${tour.images[0]?.focalY ?? 50}%`,
+                  borderRadius: 8,
+                }}
               />
               <div>
                 <Typography.Text strong style={{ fontSize: 16 }}>

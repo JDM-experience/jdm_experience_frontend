@@ -85,7 +85,7 @@ const EMPTY_FILTER_MESSAGE: Record<FilterKey, string> = {
 export default function MyBookings() {
   const { isAuthenticated, isInitializing } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [tourImages, setTourImages] = useState<Record<number, string>>({});
+  const [tourImages, setTourImages] = useState<Record<number, { url: string; focalX: number; focalY: number }>>({});
   const [loading, setLoading] = useState(true);
   const [proofTarget, setProofTarget] = useState<Booking | null>(null);
   const [uploadingProof, setUploadingProof] = useState(false);
@@ -167,10 +167,11 @@ export default function MyBookings() {
         const entries = await Promise.all(
           uniqueTourIds.map(async (tourId) => {
             const tour = await getTourById(tourId).catch(() => null);
-            return [tourId, tour?.images[0]?.imageUrl ?? ''] as const;
+            const cover = tour?.images[0];
+            return [tourId, cover ? { url: cover.imageUrl, focalX: cover.focalX, focalY: cover.focalY } : null] as const;
           }),
         );
-        setTourImages(Object.fromEntries(entries.filter(([, url]) => url)));
+        setTourImages(Object.fromEntries(entries.filter((entry): entry is [number, { url: string; focalX: number; focalY: number }] => entry[1] !== null)));
       })
       .catch((error) => message.error(getErrorMessage(error, 'Unable to load your reservations.')))
       .finally(() => setLoading(false));
@@ -288,9 +289,15 @@ export default function MyBookings() {
           <Col flex="72px">
             {tourImages[booking.tourId] ? (
               <ProductImage
-                fileName={tourImages[booking.tourId]}
+                fileName={tourImages[booking.tourId].url}
                 alt={booking.tourNameSnapshot}
-                style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 10 }}
+                style={{
+                  width: 72,
+                  height: 72,
+                  objectFit: 'cover',
+                  objectPosition: `${tourImages[booking.tourId].focalX}% ${tourImages[booking.tourId].focalY}%`,
+                  borderRadius: 10,
+                }}
               />
             ) : (
               <div

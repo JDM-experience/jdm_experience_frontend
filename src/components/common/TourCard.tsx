@@ -14,7 +14,9 @@ import { AvailabilityBadge } from './AvailabilityBadge';
  *  page (e.g. a filter, a weather widget) would otherwise re-render every card. */
 export const TourCard = memo(function TourCard({ tour }: { tour: Tour }) {
   const status = tourAvailabilityStatus(tour);
-  const image = tour.images[0]?.imageUrl ?? '';
+  const coverImage = tour.images[0];
+  const image = coverImage?.imageUrl ?? '';
+  const focalPosition = `${coverImage?.focalX ?? 50}% ${coverImage?.focalY ?? 50}%`;
   const { isAuthenticated, login } = useAuth();
   const { wishlistedTourIds, isPending, toggle } = useWishlist();
   const saved = wishlistedTourIds.has(tour.id);
@@ -52,7 +54,7 @@ export const TourCard = memo(function TourCard({ tour }: { tour: Tour }) {
             fileName={image}
             alt={tour.name}
             className="jdm-tour-card-image"
-            style={{ height: 200, width: '100%', objectFit: 'cover' }}
+            style={{ height: 200, width: '100%', objectFit: 'cover', objectPosition: focalPosition }}
           />
         </div>
       }

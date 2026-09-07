@@ -24,7 +24,9 @@ export function FeaturedTourHero({ tours }: FeaturedTourHeroProps) {
   if (tours.length === 0) return null;
   const tour = tours[index % tours.length];
   const status = tourAvailabilityStatus(tour);
-  const image = tour.images[0]?.imageUrl ?? '';
+  const coverImage = tour.images[0];
+  const image = coverImage?.imageUrl ?? '';
+  const focalPosition = `${coverImage?.focalX ?? 50}% ${coverImage?.focalY ?? 50}%`;
 
   function goTo(delta: number) {
     setIndex((current) => (current + delta + tours.length) % tours.length);
@@ -46,7 +48,7 @@ export function FeaturedTourHero({ tours }: FeaturedTourHeroProps) {
         fileName={image}
         alt={tour.name}
         className="jdm-hero-fade"
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: focalPosition }}
       />
 
       {/* Gradient overlay covers the right half so the image itself (usually the tour's most

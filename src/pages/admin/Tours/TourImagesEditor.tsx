@@ -1,22 +1,44 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Input, Modal, Popconfirm, Space, Typography, Upload, message } from 'antd';
 import { DeleteOutlined, EyeOutlined, UploadOutlined } from '@ant-design/icons';
 import { ProductImage, resolveSrc } from '@/components/common/ProductImage';
-import { addTourImage, removeTourImage } from '@/services/tourService';
+import { addTourImage, removeTourImage, updateTourImage } from '@/services/tourService';
 import { uploadTourImage } from '@/services/uploadService';
 import { getErrorMessage } from '@/utils/errors';
 import type { Tour, TourImage } from '@/types/tour';
 import { IMAGE_ACCEPT } from './constants';
 import { ImageCropGuide } from './ImageCropGuide';
+import { ImageFocalPointPicker } from './ImageFocalPointPicker';
 
 /** Image gallery + uploader for an existing tour. Shared by the "Manage Images" and "Edit Tour" modals. */
 export function TourImagesEditor({ tour, onChange }: { tour: Tour; onChange: () => void | Promise<void> }) {
   const [urlValue, setUrlValue] = useState('');
   const [busy, setBusy] = useState(false);
-  // Which image the "how will this actually be cropped" preview is open for -- object-fit: cover
-  // always crops from the center wherever this image is displayed, so this shows exactly what
-  // survives that crop before the admin saves a photo where the important part gets cut off.
+  // Which image the "reposition / how will this actually be cropped" editor is open for --
+  // object-fit: cover crops around the image's focal point wherever it's displayed, so this lets
+  // the admin move that point (e.g. onto a car) and preview the result before saving.
   const [previewTarget, setPreviewTarget] = useState<TourImage | null>(null);
+  const [draftFocal, setDraftFocal] = useState({ x: 50, y: 50 });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (previewTarget) setDraftFocal({ x: previewTarget.focalX, y: previewTarget.focalY });
+  }, [previewTarget]);
+
+  async function handleSavePosition() {
+    if (!previewTarget) return;
+    setSaving(true);
+    try {
+      await updateTourImage(tour.id, previewTarget.id, { focalX: draftFocal.x, focalY: draftFocal.y });
+      message.success('Image position saved.');
+      setPreviewTarget(null);
+      await onChange();
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Unable to save this image position.'));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function run(fn: () => Promise<void>, fallback: string) {
     setBusy(true);
@@ -109,17 +131,30 @@ export function TourImagesEditor({ tour, onChange }: { tour: Tour; onChange: () 
       </div>
 
       <Modal
-        title="Image Crop Preview"
+        title="Reposition Image"
         open={previewTarget !== null}
         onCancel={() => setPreviewTarget(null)}
-        footer={<Button onClick={() => setPreviewTarget(null)}>Close</Button>}
+        footer={[
+          <Button key="cancel" onClick={() => setPreviewTarget(null)}>
+            Cancel
+          </Button>,
+          <Button key="save" type="primary" loading={saving} onClick={() => void handleSavePosition()}>
+            Save Position
+          </Button>,
+        ]}
         width={480}
       >
         {previewTarget && (
           <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+            <ImageFocalPointPicker
+              src={resolveSrc(previewTarget.imageUrl)}
+              alt={tour.name}
+              focalX={draftFocal.x}
+              focalY={draftFocal.y}
+              onChange={(x, y) => setDraftFocal({ x, y })}
+            />
             <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-              Images are always cropped from the center. The dimmed area below will be cut off —
-              only the outlined area will actually be visible.
+              The dimmed area below will be cut off — only the outlined area will actually be visible.
             </Typography.Paragraph>
             <ImageCropGuide
               src={resolveSrc(previewTarget.imageUrl)}
@@ -127,6 +162,8 @@ export function TourImagesEditor({ tour, onChange }: { tour: Tour; onChange: () 
               ratio={1.4}
               label="Tours Grid Card"
               description="Shown on the Home page and the Tours listing."
+              focalX={draftFocal.x}
+              focalY={draftFocal.y}
             />
             <ImageCropGuide
               src={resolveSrc(previewTarget.imageUrl)}
@@ -134,6 +171,8 @@ export function TourImagesEditor({ tour, onChange }: { tour: Tour; onChange: () 
               ratio={2.6}
               label="Featured Tours Hero (desktop)"
               description="Shown at the top of the Home page when this is one of the first 3 tours. Much wider than the card, so this crops more aggressively -- on mobile it's closer to the card's shape instead."
+              focalX={draftFocal.x}
+              focalY={draftFocal.y}
             />
           </Space>
         )}

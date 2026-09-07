@@ -245,7 +245,8 @@ export default function TourDetail() {
     );
   }
 
-  const gallery = tour.images.map((img) => img.imageUrl);
+  const mainImageMeta = tour.images.find((img) => img.imageUrl === mainImage);
+  const mainImageFocalPosition = `${mainImageMeta?.focalX ?? 50}% ${mainImageMeta?.focalY ?? 50}%`;
   const status = tourAvailabilityStatus(tour);
 
   function isDateDisabled(date: Dayjs): boolean {
@@ -306,22 +307,23 @@ export default function TourDetail() {
             alt={tour.name}
             width="100%"
             height={480}
-            style={{ objectFit: 'cover', borderRadius: 8 }}
+            style={{ objectFit: 'cover', objectPosition: mainImageFocalPosition, borderRadius: 8 }}
           />
           <Space style={{ marginTop: 16 }} wrap>
-            {gallery.map((img) => (
+            {tour.images.map((thumb) => (
               <ProductImage
-                key={img}
-                fileName={img}
+                key={thumb.imageUrl}
+                fileName={thumb.imageUrl}
                 alt="Tour gallery"
-                onClick={() => setMainImage(img)}
+                onClick={() => setMainImage(thumb.imageUrl)}
                 style={{
                   width: 90,
                   height: 90,
                   objectFit: 'cover',
+                  objectPosition: `${thumb.focalX}% ${thumb.focalY}%`,
                   cursor: 'pointer',
                   borderRadius: 4,
-                  border: img === mainImage ? '2px solid #E03D36' : '1px solid #303849',
+                  border: thumb.imageUrl === mainImage ? '2px solid #E03D36' : '1px solid #303849',
                 }}
               />
             ))}
