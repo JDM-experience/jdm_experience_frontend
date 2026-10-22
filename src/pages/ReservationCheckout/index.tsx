@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Alert, Button, Card, Checkbox, Col, Image, Row, Space, Typography, Upload, message } from 'antd';
 import { EditOutlined, UploadOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
@@ -9,11 +9,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getTourById, holdTourDate, releaseTourDate } from '@/services/tourService';
 import { createBooking } from '@/services/bookingService';
 import { getPaymentMethodById } from '@/services/paymentMethodService';
+import { getPolicies } from '@/services/settingsService';
 import { ALLOWED_IMAGE_TYPES, uploadPaymentProofImage } from '@/services/uploadService';
 import { formatCurrency } from '@/utils/formatters';
 import { effectivePrice, formatTourDate } from '@/utils/bookingUtils';
 import { getErrorMessage } from '@/utils/errors';
 import type { PaymentMethod } from '@/types/paymentMethod';
+import type { PolicyPage } from '@/types/settings';
 import type { Tour } from '@/types/tour';
 
 /** Carried from TourDetail via router state -- the reservation isn't created yet, this is a
@@ -50,6 +52,9 @@ export default function ReservationCheckout() {
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [uploadingProof, setUploadingProof] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
+  const [policies, setPolicies] = useState<PolicyPage[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   // Re-confirms/refreshes the date hold that was created back on TourDetail -- this page's proof
@@ -67,11 +72,16 @@ export default function ReservationCheckout() {
     // unmounting -- guard against a slower, stale fetch overwriting the newer draft's data.
     let cancelled = false;
     setLoading(true);
-    Promise.all([getTourById(draft.tourId), getPaymentMethodById(draft.paymentMethodId)])
-      .then(([t, method]) => {
+    setPolicies([]);
+    setConfirmed(false);
+    setTermsAccepted(false);
+    setPrivacyAcknowledged(false);
+    Promise.all([getTourById(draft.tourId), getPaymentMethodById(draft.paymentMethodId), getPolicies()])
+      .then(([t, method, currentPolicies]) => {
         if (cancelled) return;
         setTour(t);
         setPaymentMethod(method);
+        setPolicies(currentPolicies);
       })
       .catch((error) => {
         if (!cancelled) setLoadError(getErrorMessage(error, 'Unable to load your reservation details.'));
@@ -128,11 +138,24 @@ export default function ReservationCheckout() {
     return Upload.LIST_IGNORE;
   }
 
+  const termsPolicy = policies.find((policy) => policy.type === 'TERMS');
+  const privacyPolicy = policies.find((policy) => policy.type === 'PRIVACY');
   const canConfirm =
-    !!draft && !!tour && !!paymentMethod?.isActive && !!proofUrl && !!proofFile && confirmed && !uploadingProof && holdStatus === 'held';
+    !!draft &&
+    !!tour &&
+    !!paymentMethod?.isActive &&
+    !!proofUrl &&
+    !!proofFile &&
+    confirmed &&
+    termsAccepted &&
+    privacyAcknowledged &&
+    !!termsPolicy?.contentHash &&
+    !!privacyPolicy?.contentHash &&
+    !uploadingProof &&
+    holdStatus === 'held';
 
   async function handleConfirmReservation() {
-    if (!draft || !proofUrl || !proofFile) return;
+    if (!draft || !proofUrl || !proofFile || !termsAccepted || !privacyAcknowledged || !termsPolicy?.contentHash || !privacyPolicy?.contentHash) return;
     setSubmitting(true);
     try {
       const booking = await createBooking({
@@ -144,6 +167,14 @@ export default function ReservationCheckout() {
         customerEmail: draft.customerEmail,
         customerPhone: draft.customerPhone,
         paymentMethodId: draft.paymentMethodId,
+        policyConsents: {
+          termsAccepted: true,
+          privacyAcknowledged: true,
+          termsVersion: termsPolicy.version,
+          termsHash: termsPolicy.contentHash,
+          privacyVersion: privacyPolicy.version,
+          privacyHash: privacyPolicy.contentHash,
+        },
         paymentProof: { fileUrl: proofUrl, fileName: proofFile.name, fileType: proofFile.type },
       });
       message.success(
@@ -153,14 +184,14 @@ export default function ReservationCheckout() {
       navigate('/cart');
     } catch (error) {
       message.error(getErrorMessage(error, 'Unable to submit this reservation.'));
-      // The selected payment method may have just been disabled, or the date taken -- refresh
-      // what we're showing so the customer isn't confirming stale information.
+      setTermsAccepted(false);
+      setPrivacyAcknowledged(false);
       if (draft) {
         getPaymentMethodById(draft.paymentMethodId).then(setPaymentMethod).catch(() => setPaymentMethod(null));
-        // The backend rejects this the same way whether the hold expired or someone else's
-        // request won the race -- either way the date is no longer held for this customer, so
-        // reflect that here rather than leaving the confirm button looking usable.
-        setHoldStatus('unavailable');
+        getPolicies().then(setPolicies).catch((reason) => message.error(getErrorMessage(reason, 'Unable to refresh policy documents.')));
+        holdTourDate(draft.tourId, draft.bookingDate)
+          .then(() => setHoldStatus('held'))
+          .catch(() => setHoldStatus('unavailable'));
       }
     } finally {
       setSubmitting(false);
@@ -197,6 +228,8 @@ export default function ReservationCheckout() {
       </div>
     );
   }
+
+  const requiredPoliciesAvailable = !!termsPolicy?.contentHash && !!privacyPolicy?.contentHash;
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '48px 24px' }}>
@@ -367,6 +400,31 @@ export default function ReservationCheckout() {
           Your reservation will be reviewed by our team after your payment proof is submitted. It will not be
           confirmed automatically.
         </Typography.Paragraph>
+        {!requiredPoliciesAvailable && (
+          <Alert
+            type="error"
+            showIcon
+            message="Reservation policies are not available."
+            description="The Terms and Conditions and Privacy Policy must both be published before a reservation can be submitted. Please contact JDM Experience."
+            style={{ marginBottom: 16 }}
+          />
+        )}
+        <Space orientation="vertical" size="small" style={{ width: '100%', marginBottom: 16 }}>
+          <Checkbox checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)}>
+            I have read and agree to the{' '}
+            <Link to="/terms-and-conditions" target="_blank" rel="noreferrer">
+              Terms and Conditions
+            </Link>
+            {termsPolicy ? ` (version ${termsPolicy.version})` : ''}.
+          </Checkbox>
+          <Checkbox checked={privacyAcknowledged} onChange={(e) => setPrivacyAcknowledged(e.target.checked)}>
+            I have read the{' '}
+            <Link to="/privacy-policy" target="_blank" rel="noreferrer">
+              Privacy Policy
+            </Link>
+            {privacyPolicy ? ` (version ${privacyPolicy.version})` : ''} and acknowledge the collection and use of my personal information for the purposes described there.
+          </Checkbox>
+        </Space>
         <Button
           type="primary"
           size="large"

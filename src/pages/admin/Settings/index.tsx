@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Card, Form, Input, InputNumber, List, Modal, Popconfirm, Space, Switch, Table, Tabs, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Form, Input, InputNumber, List, Modal, Popconfirm, Space, Switch, Table, Tabs, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { PageSpinner } from '@/components/common/PageSpinner';
@@ -22,6 +22,7 @@ import {
 import { SOCIAL_PLATFORM_LABELS } from '@/utils/socialIcons';
 import { getErrorMessage } from '@/utils/errors';
 import type { Faq, PolicyPage, PolicyType, SocialLink, SocialPlatform } from '@/types/settings';
+import { POLICY_DRAFTS } from './policyDrafts';
 
 interface ContactFormValues {
   contactEmail?: string;
@@ -279,22 +280,35 @@ function PoliciesTab() {
   const [editing, setEditing] = useState<PolicyType | null>(null);
   const [loadingPolicy, setLoadingPolicy] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [currentVersion, setCurrentVersion] = useState<number | null>(null);
   const [form] = Form.useForm<PolicyFormValues>();
 
   function openEditor(type: PolicyType) {
     setEditing(type);
     setLoadingPolicy(true);
     getPolicyForAdmin(type)
-      .then((policy: PolicyPage) => form.setFieldsValue({ title: policy.title, content: policy.content }))
+      .then((policy: PolicyPage) => {
+        setCurrentVersion(policy.version);
+        form.setFieldsValue({ title: policy.title, content: policy.content });
+      })
       .catch((error) => message.error(getErrorMessage(error, 'Unable to load this policy.')))
       .finally(() => setLoadingPolicy(false));
+  }
+
+  function loadDraft() {
+    if (!editing) return;
+    const draft = POLICY_DRAFTS[editing];
+    if (!draft) return;
+    form.setFieldsValue(draft);
+    message.warning('Draft loaded. Complete every operator placeholder and review it against current operations before publishing.');
   }
 
   async function handleSave(values: PolicyFormValues) {
     if (!editing) return;
     setSaving(true);
     try {
-      await updatePolicy(editing, values);
+      const saved = await updatePolicy(editing, values);
+      setCurrentVersion(saved.version);
       message.success('Website settings updated successfully.');
       setEditing(null);
     } catch (error) {
@@ -307,7 +321,7 @@ function PoliciesTab() {
   return (
     <Card>
       <Typography.Paragraph type="secondary">
-        A policy with no content saved yet is simply not shown on the public Policy page.
+        Terms and Privacy drafts are starting points only. Verify business details, legal requirements, and actual providers before publishing; saving changed content creates a new immutable version.
       </Typography.Paragraph>
       <List
         dataSource={POLICY_TYPES}
@@ -330,6 +344,25 @@ function PoliciesTab() {
           <PageSpinner />
         ) : (
           <Form<PolicyFormValues> form={form} layout="vertical" onFinish={handleSave}>
+            {currentVersion !== null && (
+              <Alert
+                type="info"
+                showIcon
+                message={`Current version: ${currentVersion}`}
+                description="Saving changed content publishes a new version. Existing booking acknowledgments remain linked to the version customers saw."
+                style={{ marginBottom: 16 }}
+              />
+            )}
+            {editing && POLICY_DRAFTS[editing] && (
+              <Popconfirm
+                title="Load the initial policy draft?"
+                description="This replaces the current editor content. It is not published until you save."
+                okText="Load draft"
+                onConfirm={loadDraft}
+              >
+                <Button style={{ marginBottom: 16 }}>Load initial draft</Button>
+              </Popconfirm>
+            )}
             <Form.Item label="Title" name="title" rules={[{ required: true, message: 'Title is required.' }]}>
               <Input />
             </Form.Item>
