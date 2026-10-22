@@ -42,7 +42,7 @@ export function Footer() {
           </Text>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 16 }}>
-          <div style={{ display: 'flex', gap: 24 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 24 }}>
             <Link to="/about" style={{ color: '#fff' }}>
               About
             </Link>
@@ -51,6 +51,12 @@ export function Footer() {
             </Link>
             <Link to="/policy" style={{ color: '#fff' }}>
               Policies
+            </Link>
+            <Link to="/terms-and-conditions" style={{ color: '#fff' }}>
+              Terms
+            </Link>
+            <Link to="/privacy-policy" style={{ color: '#fff' }}>
+              Privacy
             </Link>
             <Link to="/faq" style={{ color: '#fff' }}>
               FAQ

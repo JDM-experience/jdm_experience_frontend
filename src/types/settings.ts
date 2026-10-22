@@ -43,6 +43,9 @@ export interface PolicyPage {
   type: PolicyType;
   title: string;
   content: string;
+  version: number;
+  contentHash: string | null;
+  effectiveAt: string | null;
 }
 
 export interface UpdatePolicyInput {

@@ -41,6 +41,14 @@ export interface CreateBookingInput {
   customerPhone: string;
   paymentMethodId: number;
   paymentProof: SubmitPaymentProofInput;
+  policyConsents: {
+    termsAccepted: true;
+    privacyAcknowledged: true;
+    termsVersion: number;
+    termsHash: string;
+    privacyVersion: number;
+    privacyHash: string;
+  };
 }
 
 export interface PaymentProof {

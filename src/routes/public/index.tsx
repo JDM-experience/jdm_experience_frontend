@@ -7,6 +7,7 @@ import Register from '@/pages/Register';
 import About from '@/pages/About';
 import Contact from '@/pages/Contact';
 import Policy from '@/pages/Policy';
+import PolicyDocument from '@/pages/PolicyDocument';
 import FAQ from '@/pages/FAQ';
 import Weather from '@/pages/Weather';
 
@@ -19,6 +20,8 @@ export const publicRoutes: AppRoute[] = [
   { path: 'about', element: <About /> },
   { path: 'contact', element: <Contact /> },
   { path: 'policy', element: <Policy /> },
+  { path: 'terms-and-conditions', element: <PolicyDocument type="TERMS" /> },
+  { path: 'privacy-policy', element: <PolicyDocument type="PRIVACY" /> },
   { path: 'faq', element: <FAQ /> },
 ];
 

@@ -41,6 +41,10 @@ export default function Policy() {
           policies.map((policy) => (
             <div key={policy.type} style={{ marginBottom: 32 }}>
               <Typography.Title level={4}>{policy.title}</Typography.Title>
+              <Typography.Paragraph type="secondary">
+                Version {policy.version}
+                {policy.effectiveAt ? ` · Effective ${new Date(policy.effectiveAt).toLocaleDateString()}` : ''}
+              </Typography.Paragraph>
               <div className="jdm-rich-text-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(policy.content) }} />
             </div>
           ))
